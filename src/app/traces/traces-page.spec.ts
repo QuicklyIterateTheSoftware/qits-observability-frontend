@@ -149,6 +149,28 @@ describe('TracesPage', () => {
     await settle();
   }
 
+  /**
+   * Pick a row of a lens dropdown by the words on it, the way a reader does.
+   *
+   * Located through the `<label>` rather than by position, because a page carries several of these
+   * and a positional selector would keep passing while pointing at the wrong lens. The option is
+   * matched on a prefix: a row reads "qits-artifacts · 412 spans", and the count in it is a live
+   * figure this suite has no business spelling.
+   */
+  async function choose(lens: string, option: string): Promise<void> {
+    const label = Array.from(page().querySelectorAll('label.lens-label')).find(
+      (element) => (element.textContent ?? '').trim() === lens,
+    );
+    expect(label, `no lens labelled "${lens}"`).toBeTruthy();
+    const select = page().querySelector<HTMLSelectElement>(`#${label?.getAttribute('for')}`);
+    expect(select, `no dropdown under "${lens}"`).toBeTruthy();
+    const row = Array.from(select?.options ?? []).find((entry) => entry.text.startsWith(option));
+    expect(row, `no row reading "${option}" under "${lens}"`).toBeTruthy();
+    select!.value = row!.value;
+    select!.dispatchEvent(new Event('change'));
+    await settle();
+  }
+
   it('costs the shell’s two plus exactly one', async () => {
     await open(`/traces?source=${ENCODED}`);
     const requests = http.match(() => true);
@@ -245,7 +267,7 @@ describe('TracesPage', () => {
     // The chips came from the source row the band already holds.
     expect(text()).toContain('qits-artifacts');
 
-    await click('qits-artifacts');
+    await choose('Service', 'qits-artifacts');
 
     expect(TestBed.inject(Router).url).toContain('service=qits-artifacts');
     const request = traceRead();

@@ -19,6 +19,7 @@ import { TelemetryBuffer } from '../buffer/telemetry-buffer';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { formatCount, formatStamp, plural, shortId } from '../ui/format';
+import { LensSelect, type LensOption } from '../ui/lens-select';
 import { IDLE, LOADING, describeError, failed, ready, type Loadable } from '../ui/loadable';
 import { buildOf } from '../ui/resource';
 import { restartEmptied } from '../ui/restart';
@@ -72,7 +73,7 @@ export const SERVICE_PARAM = 'service';
 @Component({
   selector: 'app-errors-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Async, Empty, QitsBadge, QitsButton, RouterLink, SourceStrip],
+  imports: [Async, Empty, LensSelect, QitsBadge, QitsButton, RouterLink, SourceStrip],
   templateUrl: './errors-page.html',
   styleUrls: ['../ui/page.css', './errors-page.css'],
 })
@@ -119,12 +120,28 @@ export class ErrorsPage {
     return state.kind === 'ready' ? viewErrorGroups(state.value.groups) : NO_GROUPS;
   });
 
-  /** The selected source's own row, which is where the service chips come from — at no cost. */
+  /** The selected source's own row, which is where the service dropdown comes from — at no cost. */
   protected readonly sourceRow = computed(() => this.buffer.source(this.source()));
 
   /** The services that have reported into this bucket. Arrived with the source; costs nothing. */
   protected readonly services = computed<readonly string[]>(
     () => this.sourceRow()?.services.map((service) => service.name) ?? [],
+  );
+
+  /**
+   * The service dropdown's rows, each with everything that service has here.
+   *
+   * Both signals, and both are needed: an error group is assembled from error-status spans *and*
+   * ERROR logs, so a service reporting only one of the two can still fill this screen — and a
+   * figure showing only spans would make a log-only service look like it has nothing to say.
+   */
+  protected readonly serviceOptions = computed<readonly LensOption[]>(
+    () =>
+      this.sourceRow()?.services.map((service) => ({
+        value: service.name,
+        label: service.name,
+        detail: `${formatCount(service.spans)} spans, ${formatCount(service.logs)} logs`,
+      })) ?? [],
   );
 
   /**
@@ -259,14 +276,9 @@ export class ErrorsPage {
     this.syncPolling();
   }
 
-  /** The service narrowing, as a navigation. Choosing the current one clears it. */
+  /** The service narrowing, as a navigation. The dropdown's "All services" row clears it. */
   protected async setService(name: string | null): Promise<void> {
-    const next = name && name !== this.service() ? name : null;
-    await this.merge({ [SERVICE_PARAM]: next });
-  }
-
-  protected isService(name: string | null): boolean {
-    return this.service() === name;
+    await this.merge({ [SERVICE_PARAM]: name });
   }
 
   /** The window, as a navigation. "Everything buffered" is spelled as an absent parameter. */

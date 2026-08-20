@@ -1,8 +1,16 @@
 # QitsSpaObservability
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
-served by qits-observability itself at `/observability/` through Quinoa. Six screens, no forms, and
-no writes at all.
+served by qits-observability itself at `/observability/` through Quinoa. Seven screens, no forms,
+and no writes at all.
+
+**Which application you are reading is a dropdown in the chrome.** Every screen below reads one
+bucket of the buffer, named by `?source=`, and that bucket is chosen from a `qits-picker` in the
+platform sidebar — offered under this application's own navigation entry, so it is on screen
+wherever you are and it lists every source with what it holds. It used to be a table on the overview
+and nothing else, which meant a link to `/observability/logs` landed on "no source is selected" and
+a sentence pointing back at a page the reader had not been on. Changing the source keeps every lens
+except `?service=`, because a service name belongs to the bucket it was chosen in.
 
 **The shell costs 2 requests, and every screen adds exactly one.** `GET /telemetry/store` and
 `GET /telemetry/sources` are held app-wide by one injectable and shared by every page, so no page in
@@ -17,35 +25,48 @@ written down here.
 - **`/observability/traces`** — the trace list, Recent or Slowest. **+1**
   (`GET /telemetry/traces?source=&service=&sort=&thresholdMs=&limit=`), every 10 s. It stays one
   request however you narrow it: the lens, the duration floor and the service each change _that_
-  request rather than adding another, and the service chips are drawn from the source row the band
+  request rather than adding another, and the service dropdown is drawn from the source row the band
   already holds. With no source selected it is **+0** — a read with no source answers `200` and an
   empty list, so firing one would spend a request to say "no telemetry" about a bucket nobody chose.
 - **`/observability/traces/<traceId>`** — the waterfall, the span detail pane and the correlated
   logs. **+1** (`GET /telemetry/traces/{traceId}?source=`). It does not poll: a trace is a finished
   thing, and a manual refresh covers late spans. The spans and their correlated logs arrive in the
   same answer, so the log rail costs nothing on top, and selecting a span costs nothing either.
+- **`/observability/spans`** — every buffered span of the bucket as rows, narrowed by four
+  dropdowns: service, duration floor, order and window. **+1**
+  (`GET /telemetry/slow-spans?source=&service=&thresholdMs=&sinceMinutes=&sort=&limit=`), every
+  10 s. **The floor defaults to 0, not to the endpoint's own 500**: the filter is `>=`, so zero
+  turns `slow-spans` from "what is slow" into "what happened", which is the question this screen
+  exists for. The trace list groups spans and the waterfall draws one trace's; until this screen
+  existed, seeing a span meant already knowing which trace it was in, and the endpoint had no reader
+  at all. With no source selected it is **+0**.
 - **`/observability/errors`** — one card per trace, its error spans and its ERROR logs together.
   **+1** (`GET /telemetry/errors?source=&service=&sinceMinutes=&limit=`), every 10 s. It stays one
   request however you narrow it, and **expanding a card costs nothing**: a group arrives with its
   spans, its logs and their stack traces inside it. With no source selected it is **+0** — and on
   this screen more than any other, because a sourceless read answers `200` with an empty list and
   "no errors" is far too reassuring a thing to say by accident.
-- **`/observability/logs`** — the log tail, with search, severity chips and a follow mode. **+1**
-  (`GET /telemetry/logs?source=&service=&query=&sinceMinutes=&limit=`), every 5 s while Follow is on
-  and **not at all while it is off**. With no source selected it is **+0**.
+- **`/observability/logs`** — the log tail, with search, a severity dropdown, a service dropdown
+  and a follow mode. **+1**
+  (`GET /telemetry/logs?source=&service=&query=&minSeverity=&sinceMinutes=&limit=`), every 5 s while
+  Follow is on and **not at all while it is off**. **The severity band is on the wire, not applied
+  to the answer**, and that is the whole reason the service grew a `minSeverity`: this endpoint
+  truncates, so a screen that filtered its own 200 records would be showing the errors _within_ a
+  page the buffer had already cut, while reading as the last 200 errors. With no source selected it
+  is **+0**.
 - **`/observability/metrics`** — every metric series the bucket holds, grouped by name and shown at
   its latest value. **+1** (`GET /telemetry/metrics?source=&service=`), every 10 s. The **name box
   costs nothing at all**: one read holds every series a bucket has — one point per series, capped at
   500 — so it narrows what is already on the page. With no source selected it is **+0**.
 
-All six are real screens. A `PendingPage` stood behind the unwritten ones so the route table was the
+All seven are real screens. A `PendingPage` stood behind the unwritten ones so the route table was the
 whole route table from the first commit — addressable, carrying the selected source, and saying what
 each screen would show and cost, because an unbuilt route that renders blank chrome is
 indistinguishable from a screen that failed to load. `/metrics` was the last one behind it, so that
 component is gone with it.
 
 **The lenses live in the URL, not in the components.** `?source=`, `?sort=`, `?threshold=`,
-`?service=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
+`?service=`, `?severity=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
 anything that costs a request is URL state — so every screen here is a link somebody can send and
 the back button means "the list I was looking at". `?name=` is the one that costs no request and is
 in the URL anyway: it narrows rows the page already holds, and a metric table somebody meant to send
@@ -182,13 +203,31 @@ nothing here builds one, parses one, or reads meaning out of one. It is spelled 
 today and that is not a promise. The reason it exists at all is that the old `repositoryId` +
 `workspaceId` pair cannot name the bucket every qits service actually exports into.
 
-`ui/` carries `loadable`, `async`, `empty`, `format`, `ticker` and `page.css`, copied from the
-sibling SPAs rather than shared. `@qits/ui-components` carries presentational components, not
+`nav/` holds the one thing this app puts in the platform chrome: the source picker and the screen
+links under it, handed to `QitsMainLayout` as an `ng-template qitsNavSubmenu` from the shell. It is
+declared in the shell rather than in a page for a correctness reason — `RouterOutlet` destroys the
+outgoing component after creating the incoming one, so a declaration inside a page would be rebuilt
+on every hop in a menu that did not itself change.
+
+`ui/` carries `loadable`, `async`, `empty`, `format`, `lens-select`, `ticker` and `page.css`, mostly
+copied from the sibling SPAs rather than shared. `@qits/ui-components` carries presentational components, not
 application types, so there is nowhere to put them yet — and this feature does not edit the shared
-library. Three modules there are this application's own rather than copies: `severity`, which turns a
-log's two severity fields into a chip and is used by both screens that draw one; `window`, which
-holds the `?since=` spelling both screens that offer a window must agree on; and `restart`, which
-holds the threshold and the lead sentence all five screens end their empty-state ladder with.
+library. Four modules there are this application's own rather than copies: `severity`, which turns a
+log's two severity fields into a chip, holds the six bands the log tail's dropdown offers and
+coerces the one a URL asks for; `window`, which holds the `?since=` spelling every screen that
+offers a window must agree on; `restart`, which holds the threshold and the lead sentence all six
+screens end their empty-state ladder with; and `lens-select`, the dropdown every open-ended lens is
+drawn with.
+
+**`lens-select` is a native `<select>` on purpose**, where the sidebar's source picker is
+`qits-picker`. The shared component renders its options open in the flow of the page whenever
+nothing is chosen, which is right for a sidebar where picking _is_ the screen and wrong for a strip
+of four lenses above a table. The empty row of a lens select comes back as `null` rather than `''`,
+because on the wire those are different requests: an absent `?service=` is every service, and an
+empty one is a filter matching a service called the empty string. A live value the options do not
+offer — a link carrying a `?service=` that has stopped reporting — is said out loud rather than
+dropped, since the filter is still shaping an answer that would otherwise look like an empty
+bucket.
 
 **There is no `?since=` on the metrics screen, and that is the endpoint rather than an omission.**
 `/telemetry/metrics` takes no window, because a latest value has none to be inside. Nor is the

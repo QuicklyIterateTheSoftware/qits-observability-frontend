@@ -19,6 +19,7 @@ import { TelemetryBuffer } from '../buffer/telemetry-buffer';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { formatCount, formatStamp, plural } from '../ui/format';
+import { LensSelect, type LensOption } from '../ui/lens-select';
 import { IDLE, LOADING, describeError, failed, ready, type Loadable } from '../ui/loadable';
 import { restartEmptied } from '../ui/restart';
 import { tickingNow } from '../ui/ticker';
@@ -80,7 +81,7 @@ export const SERVICE_PARAM = 'service';
 @Component({
   selector: 'app-metrics-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Async, Empty, QitsBadge, QitsButton, RouterLink, SourceStrip],
+  imports: [Async, Empty, LensSelect, QitsBadge, QitsButton, RouterLink, SourceStrip],
   templateUrl: './metrics-page.html',
   styleUrls: ['../ui/page.css', './metrics-page.css'],
 })
@@ -129,12 +130,28 @@ export class MetricsPage {
   protected readonly shown = computed(() => seriesCount(this.groups()));
   protected readonly received = computed(() => this.metrics().length);
 
-  /** The selected source's own row, which is where the service chips come from — at no cost. */
+  /** The selected source's own row, which is where the service dropdown comes from — at no cost. */
   protected readonly sourceRow = computed(() => this.buffer.source(this.source()));
 
   /** The services that have reported into this bucket. Arrived with the source; costs nothing. */
   protected readonly services = computed<readonly string[]>(
     () => this.sourceRow()?.services.map((service) => service.name) ?? [],
+  );
+
+  /**
+   * The service dropdown's rows, each carrying its series count.
+   *
+   * Series rather than records, because that is what this screen draws: a service exporting a
+   * hundred thousand spans and no instruments is at zero here, and the figure is the difference
+   * between "nothing arrived" and "nothing of this kind arrived".
+   */
+  protected readonly serviceOptions = computed<readonly LensOption[]>(
+    () =>
+      this.sourceRow()?.services.map((service) => ({
+        value: service.name,
+        label: service.name,
+        detail: `${formatCount(service.metricSeries)} series`,
+      })) ?? [],
   );
 
   /**
@@ -326,14 +343,9 @@ export class MetricsPage {
     await this.merge({ [NAME_PARAM]: null });
   }
 
-  /** The service narrowing, as a navigation. Choosing the current one clears it. */
+  /** The service narrowing, as a navigation. The dropdown's "All services" row clears it. */
   protected async setService(name: string | null): Promise<void> {
-    const next = name && name !== this.service() ? name : null;
-    await this.merge({ [SERVICE_PARAM]: next });
-  }
-
-  protected isService(name: string | null): boolean {
-    return this.service() === name;
+    await this.merge({ [SERVICE_PARAM]: name });
   }
 
   /** What kind of instrument this is, as a badge tone. `MIXED` is a disagreement, so it is warned. */

@@ -155,6 +155,28 @@ describe('LogsPage', () => {
     await settle();
   }
 
+  /**
+   * Pick a row of a lens dropdown by the words on it, the way a reader does.
+   *
+   * Located through the `<label>` rather than by position, because a page carries several of these
+   * and a positional selector would keep passing while pointing at the wrong lens. The option is
+   * matched on a prefix: a row reads "qits-artifacts · 412 spans", and the count in it is a live
+   * figure this suite has no business spelling.
+   */
+  async function choose(lens: string, option: string): Promise<void> {
+    const label = Array.from(page().querySelectorAll('label.lens-label')).find(
+      (element) => (element.textContent ?? '').trim() === lens,
+    );
+    expect(label, `no lens labelled "${lens}"`).toBeTruthy();
+    const select = page().querySelector<HTMLSelectElement>(`#${label?.getAttribute('for')}`);
+    expect(select, `no dropdown under "${lens}"`).toBeTruthy();
+    const row = Array.from(select?.options ?? []).find((entry) => entry.text.startsWith(option));
+    expect(row, `no row reading "${option}" under "${lens}"`).toBeTruthy();
+    select!.value = row!.value;
+    select!.dispatchEvent(new Event('change'));
+    await settle();
+  }
+
   /** The rail, given a geometry jsdom does not lay out, so a scroll can be a real one. */
   function rail(scrollTop: number): HTMLElement {
     const element = page().querySelector('ol.tail') as HTMLElement;
@@ -216,6 +238,64 @@ describe('LogsPage', () => {
     await settle();
   });
 
+  /**
+   * The severity band is the service's filter, not this screen's — and that is the assertion.
+   *
+   * A page that kept its 200 records and hid the quiet ones would look identical and be wrong: the
+   * answer is truncated before it arrives, so what a reader would be seeing is "the errors among
+   * the last 200 records" under a heading that says the last 200 errors. The wire is the only place
+   * this distinction is visible, which is why it is asserted on the request rather than on the DOM.
+   */
+  it('puts the severity floor on the endpoint rather than filtering the answer', async () => {
+    await open(`/logs?source=${ENCODED}`);
+    shell();
+    const first = logRead();
+    expect(first.request.params.has('minSeverity')).toBe(false);
+    first.flush({ logs: [log()], total: 1, truncated: false });
+    await settle();
+
+    await choose('Severity', 'WARN and above');
+
+    expect(TestBed.inject(Router).url).toContain('severity=WARN');
+    const request = logRead();
+    expect(request.request.params.get('minSeverity')).toBe('WARN');
+    request.flush({ logs: [], total: 0, truncated: false });
+    await settle();
+
+    // The band excludes both the quieter records and the ones carrying no severity at all, and the
+    // empty state has to say so — "no logs" would read as a service that has stopped reporting.
+    expect(text()).toContain('reaches WARN');
+    expect(text()).toContain('carry no severity at all');
+  });
+
+  it('reads a band back out of a shared link, whatever case it was typed in', async () => {
+    await open(`/logs?source=${ENCODED}&severity=error`);
+    shell();
+    const pending = logRead();
+
+    // Case-insensitive, because the six words are the service's and a link is typed by people.
+    expect(pending.request.params.get('minSeverity')).toBe('ERROR');
+    pending.flush({
+      logs: [log({ severityNumber: 17, severityText: 'ERROR' })],
+      total: 1,
+      truncated: false,
+    });
+    await settle();
+  });
+
+  it('refuses to pass a misspelt band to a service that answers 400 for one', async () => {
+    // A typo in a hand-edited link must not become an error screen where the reader wanted a tail.
+    // The dropdown can only ever produce the six, so this coercion is unreachable from the UI —
+    // which is exactly why it needs a test.
+    await open(`/logs?source=${ENCODED}&severity=loud`);
+    shell();
+    const coerced = logRead();
+
+    expect(coerced.request.params.has('minSeverity')).toBe(false);
+    coerced.flush({ logs: [log()], total: 1, truncated: false });
+    await settle();
+  });
+
   it('puts the search on the endpoint and in the URL, and says what it matches', async () => {
     await open(`/logs?source=${ENCODED}`);
     shell();
@@ -268,7 +348,7 @@ describe('LogsPage', () => {
     await settle();
 
     expect(text()).toContain('qits-artifacts');
-    await click('qits-artifacts');
+    await choose('Service', 'qits-artifacts');
 
     expect(TestBed.inject(Router).url).toContain('service=qits-artifacts');
     const request = logRead();

@@ -1,0 +1,161 @@
+<header class="head">
+  <div>
+    <h1>Spans</h1>
+    <p class="lede">
+      Every buffered span of one bucket, as rows rather than as a waterfall — what an application
+      actually did, narrowed by four dropdowns. One request, however you narrow it.
+    </p>
+  </div>
+  <qits-button variant="secondary" size="sm" (pressed)="refresh()">Refresh</qits-button>
+</header>
+
+<app-source-strip />
+
+@if (!source()) {
+  <app-empty
+    message="No source is selected, so there is nothing to list. A span read with no source answers with an empty list rather than an error, so this screen asks for nothing until you name a bucket."
+  />
+  <p class="note">
+    Pick one from the <strong>source dropdown</strong> in the sidebar, or
+    <a routerLink="/">choose it from the table on the overview</a> — either way it is carried here
+    in the URL and travels with the link.
+  </p>
+} @else {
+  <section class="lenses" aria-label="How this table is narrowed">
+    @if (serviceOptions().length > 0) {
+      <app-lens-select
+        label="Service"
+        allLabel="All services"
+        [value]="service()"
+        [options]="serviceOptions()"
+        (changed)="setService($event)"
+      >
+        Drawn from the source row the band already holds, so narrowing costs no extra request. The
+        figure is how many spans that service has here.
+      </app-lens-select>
+    }
+
+    <app-lens-select
+      label="Longer than"
+      allLabel="Any duration"
+      [value]="thresholdValue()"
+      [options]="thresholdOptions()"
+      (changed)="setThreshold($event)"
+    >
+      The floor is applied by the service — the filter is <code>durationMs &gt;= threshold</code>,
+      so <strong>Any duration</strong> is 0 and admits every buffered span. That is this screen's
+      default, and it is why the same endpoint that answers “what is slow” also answers “what
+      happened”.
+    </app-lens-select>
+
+    <app-lens-select
+      label="Order"
+      allLabel="Slowest first"
+      [value]="sortValue()"
+      [options]="sortOptions"
+      (changed)="setSort($event)"
+    >
+      It decides which end a bounded answer keeps, not just the row order: at 200 of 1,841 you are
+      looking at the 200 slowest or the 200 newest, never an arbitrary 200.
+    </app-lens-select>
+
+    <app-lens-select
+      label="Window"
+      allLabel="Everything buffered"
+      [value]="sinceValue()"
+      [options]="windowOptions"
+      (changed)="setSince($event)"
+    >
+      Applied by the service over its own ingest stamp, not the exporter's clock.
+      <strong>Everything buffered</strong> sends no window at all, which on a bounded store is the
+      only setting that cannot hide a record the buffer still holds.
+    </app-lens-select>
+  </section>
+
+  @if (problem()) {
+    <p class="page-error" role="status">
+      The last refresh failed ({{ problem() }}). These rows are the last ones that arrived, and they
+      are being retried every 30 s.
+    </p>
+  }
+
+  <app-async
+    [state]="listState()"
+    loadingLabel="Reading the spans"
+    errorLabel="Could not read the spans"
+    (retry)="refresh()"
+  />
+
+  @if (listState().kind === 'ready') {
+    @if (spans().length === 0) {
+      <app-empty [message]="emptyReason()" />
+      @if (range() && since() === null) {
+        <p class="note">This source holds records from {{ range() }}.</p>
+      }
+    } @else {
+      <div class="scroll">
+        <table>
+          <caption>
+            {{
+              sort() === 'duration'
+                ? 'Longest first. One row per buffered span, whatever trace it belongs to.'
+                : 'Newest first. One row per buffered span, whatever trace it belongs to.'
+            }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Span</th>
+              <th scope="col">Service</th>
+              <th scope="col">Kind</th>
+              <th scope="col" class="num">Duration</th>
+              <th scope="col">Started</th>
+              <th scope="col">Trace</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (span of spans(); track span.spanId) {
+              <tr [class.errored]="span.status === 'ERROR'">
+                <th scope="row" class="name">
+                  <span>{{ span.name || '(unnamed span)' }}</span>
+                  @if (span.status === 'ERROR') {
+                    <qits-badge label="error" [tone]="tone(span.status)" />
+                  }
+                  @if (hasException(span)) {
+                    <qits-badge label="exception" tone="warning" />
+                  }
+                  @if (span.statusMessage) {
+                    <span class="status">{{ span.statusMessage }}</span>
+                  }
+                </th>
+                <td class="mono">
+                  {{ span.serviceName || '—' }}
+                  @if (buildOf(span.resourceAttributes); as build) {
+                    <span class="build">{{ build }}</span>
+                  }
+                </td>
+                <td class="mono">{{ span.kind || 'UNSPECIFIED' }}</td>
+                <td class="num">{{ formatDuration(span.durationMs) }}</td>
+                <td class="stamp">{{ age(span.startEpochNanos) }}</td>
+                <td class="mono">
+                  <a [routerLink]="['/traces', span.traceId]" [queryParams]="{ source: source() }">
+                    {{ shortId(span.traceId) }}
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (truncation()) {
+        <p class="note">{{ truncation() }}</p>
+      }
+      <p class="note">
+        A duration of <code>&lt;1 ms</code> is the service's own <code>0</code>: durations are
+        integer milliseconds and the buffer holds no finer figure. Every row links to the trace it
+        belongs to, which is where its parents, its children and its correlated logs are — this
+        table is the flat view, deliberately.
+      </p>
+    }
+  }
+}

@@ -16,8 +16,9 @@
     message="No source is selected, so there is nothing to group. An error read with no source answers with an empty list rather than an error, so this screen asks for nothing until you name a bucket — and “no errors” is far too reassuring a thing to say by accident."
   />
   <p class="note">
-    <a routerLink="/">Choose a source on the overview</a> — it is carried here in the URL and
-    travels with the link.
+    Pick one from the <strong>source dropdown</strong> in the sidebar, or
+    <a routerLink="/">choose it from the table on the overview</a> — either way it is carried here
+    in the URL and travels with the link.
   </p>
 } @else {
   <section class="lenses" aria-label="How this list is narrowed">
@@ -42,33 +43,18 @@
       </span>
     </div>
 
-    @if (services().length > 0) {
-      <div class="lens">
-        <span class="lens-label" id="lens-service">Service</span>
-        <div class="chips" role="group" aria-labelledby="lens-service">
-          <button
-            type="button"
-            [class.on]="!service()"
-            [attr.aria-pressed]="!service()"
-            (click)="setService(null)"
-          >
-            All
-          </button>
-          @for (name of services(); track name) {
-            <button
-              type="button"
-              [class.on]="isService(name)"
-              [attr.aria-pressed]="isService(name)"
-              (click)="setService(name)"
-            >
-              {{ name }}
-            </button>
-          }
-        </div>
-        <span class="hint">
-          Drawn from the source row the band already holds, so narrowing costs no extra request.
-        </span>
-      </div>
+    @if (serviceOptions().length > 0) {
+      <app-lens-select
+        label="Service"
+        allLabel="All services"
+        [value]="service()"
+        [options]="serviceOptions()"
+        (changed)="setService($event)"
+      >
+        Drawn from the source row the band already holds, so narrowing costs no extra request. The
+        figures are everything that service has here, not its errors — a service with plenty of both
+        and no group below it is one that has not failed.
+      </app-lens-select>
     }
   </section>
 

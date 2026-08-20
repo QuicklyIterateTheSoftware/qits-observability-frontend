@@ -1,4 +1,10 @@
-import { UNSET_LABEL, severityOf, severityWord } from './severity';
+import {
+  SEVERITY_BANDS,
+  UNSET_LABEL,
+  readSeverityBand,
+  severityOf,
+  severityWord,
+} from './severity';
 
 /**
  * The three shapes a severity arrives in, asserted directly rather than through a row.
@@ -71,5 +77,49 @@ describe('severityOf', () => {
   it('treats whitespace as no word rather than as a word', () => {
     expect(severityOf(log(0, '   ')).unset).toBe(true);
     expect(severityOf(log(9, '   ')).label).toBe('INFO');
+  });
+});
+
+/**
+ * The band a `?severity=` narrowing names, which is the log tail's dropdown and the service's
+ * `minSeverity` in one vocabulary.
+ *
+ * The coercion is the whole point of the function and is unreachable from the UI — the dropdown can
+ * only ever produce the six — so it is asserted here or nowhere. The service answers a band it does
+ * not know with a `400`, and a typo in a hand-edited link must not become an error screen where the
+ * reader wanted a log tail.
+ */
+describe('readSeverityBand', () => {
+  it('accepts the six words in any case, and nothing else', () => {
+    expect(readSeverityBand('error')).toBe('ERROR');
+    expect(readSeverityBand('  Warn ')).toBe('WARN');
+    expect(SEVERITY_BANDS.map((band) => band.value)).toEqual([
+      'TRACE',
+      'DEBUG',
+      'INFO',
+      'WARN',
+      'ERROR',
+      'FATAL',
+    ]);
+  });
+
+  it('reads anything else as no filter at all', () => {
+    expect(readSeverityBand('loud')).toBeNull();
+    expect(readSeverityBand('17')).toBeNull();
+    expect(readSeverityBand('')).toBeNull();
+    expect(readSeverityBand(null)).toBeNull();
+  });
+
+  it('labels every band as the floor it is', () => {
+    // "WARN" alone would promise a filter nobody asked for and make the ERROR rows under it look
+    // like a bug. FATAL is the top of the scale, so it is the one band that is only itself.
+    expect(SEVERITY_BANDS.map((band) => band.label)).toEqual([
+      'TRACE and above',
+      'DEBUG and above',
+      'INFO and above',
+      'WARN and above',
+      'ERROR and above',
+      'FATAL only',
+    ]);
   });
 });

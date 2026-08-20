@@ -176,14 +176,16 @@
       @if (selectedKey()) {
         <nav class="onward" aria-label="Screens for the selected source">
           <a [routerLink]="['/traces']" [queryParams]="{ source: selectedKey() }">Traces</a>
+          <a [routerLink]="['/spans']" [queryParams]="{ source: selectedKey() }">Spans</a>
           <a [routerLink]="['/errors']" [queryParams]="{ source: selectedKey() }">Errors</a>
           <a [routerLink]="['/logs']" [queryParams]="{ source: selectedKey() }">Logs</a>
           <a [routerLink]="['/metrics']" [queryParams]="{ source: selectedKey() }">Metrics</a>
         </nav>
       } @else {
         <p class="note">
-          Select a source to carry it to the trace, error, log and metric screens. Those screens
-          read one bucket at a time and cannot address all of them at once.
+          Select a source to carry it to the span, trace, error, log and metric screens — here, or
+          from the source dropdown in the sidebar, which offers the same list on every screen. Those
+          screens read one bucket at a time and cannot address all of them at once.
         </p>
       }
     }

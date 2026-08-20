@@ -1,0 +1,64 @@
+/* The span table's own furniture. The heading block and the table come from ui/page.css, which
+   every page in this app pulls in beside its own sheet, and every lens here is `app-lens-select`,
+   which brings its own — so this sheet holds the strip that contains them and the cells. */
+
+/* The lenses sit above the table rather than in it, because each one changes the request the table
+   is drawn from — they are not column filters and must not look like column filters. */
+.lenses {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0 0 1.1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background: #f9fafb;
+}
+
+/* A span name is the row's subject and is often long — it is the one cell allowed to wrap. */
+.name {
+  white-space: normal;
+  max-width: 34rem;
+  font-weight: 500;
+}
+
+.name qits-badge {
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+/* The status message, when the exporter set one. It explains the badge beside it, so it is drawn
+   under the name rather than in a column nobody would look at on a row that is not failing. */
+.status {
+  display: block;
+  margin-top: 0.15rem;
+  color: #b91c1c;
+  font-size: 0.85em;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+/* Which build emitted this. Quiet and beside the service, because it is the same value on every row
+   one process sent and only matters when two of them differ. */
+.build {
+  margin-left: 0.4rem;
+  color: #6b7280;
+  font-size: 0.9em;
+}
+
+.stamp {
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9em;
+}
+
+/* A left rule rather than a fill: the row still has to be read, and a red wash would cost the
+   numbers in it the contrast they were chosen for. */
+tr.errored > :first-child {
+  box-shadow: inset 3px 0 0 #b91c1c;
+}
+
+.note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}

@@ -5,11 +5,12 @@ import { LogsPage } from './logs/logs-page';
 import { MetricsPage } from './metrics/metrics-page';
 import { NotFound } from './not-found/not-found';
 import { OverviewPage } from './overview/overview-page';
+import { SpansPage } from './spans/spans-page';
 import { TracePage } from './traces/trace-page';
 import { TracesPage } from './traces/traces-page';
 
 /**
- * Seven routes, all of them inside the platform chrome.
+ * Eight routes, all of them inside the platform chrome.
  *
  * `QitsMainLayout` is the root *route* component rather than something the shell templates, so the
  * bar and the navigation mount once and survive every navigation beneath them; only the outlet's
@@ -25,7 +26,12 @@ import { TracesPage } from './traces/traces-page';
  * `?threshold=`. Nothing that costs a request hides in component state, which is what makes every
  * screen here a link somebody can send.
  *
- * Everything loads eagerly. There are seven routes, they share every component below them, and a
+ * **`/spans` is the flat view of what `/traces` groups**, and it is a route rather than a lens on
+ * the trace list because it answers a different question: "what did this service do", not "what
+ * happened in this trace". It reads `slow-spans`, which had no screen at all until it existed —
+ * with the floor at 0 that endpoint enumerates rather than filters.
+ *
+ * Everything loads eagerly. There are eight routes, they share every component below them, and a
  * lazy chunk boundary here would be ceremony that costs a round trip.
  *
  * The `**` route sits *inside* the children — see {@link NotFound} for why that differs from
@@ -46,6 +52,7 @@ export const routes: Routes = [
       { path: '', component: OverviewPage },
       { path: 'traces', component: TracesPage },
       { path: 'traces/:traceId', component: TracePage },
+      { path: 'spans', component: SpansPage },
       { path: 'errors', component: ErrorsPage },
       { path: 'logs', component: LogsPage },
       { path: 'metrics', component: MetricsPage },
