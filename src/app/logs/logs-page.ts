@@ -21,9 +21,10 @@ import { TelemetryBuffer } from '../buffer/telemetry-buffer';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { formatCount, formatStamp } from '../ui/format';
+import { LensSelect, type LensOption } from '../ui/lens-select';
 import { IDLE, LOADING, describeError, failed, ready, type Loadable } from '../ui/loadable';
 import { restartEmptied } from '../ui/restart';
-import { severityOf } from '../ui/severity';
+import { SEVERITY_BANDS, readSeverityBand, severityOf, type SeverityBand } from '../ui/severity';
 import { tickingNow } from '../ui/ticker';
 import { SINCE_PARAM, WINDOW_PRESETS, readWindow, windowLabel } from '../ui/window';
 
@@ -47,6 +48,16 @@ export const QUERY_PARAM = 'q';
 
 /** The per-service narrowing, as a query parameter. */
 export const SERVICE_PARAM = 'service';
+
+/**
+ * The severity floor, as a query parameter.
+ *
+ * `severity` in the URL and `minSeverity` on the wire, and the two spellings are deliberate: the
+ * shorter word is what a reader sees in a link they are about to send, and the longer one is the
+ * service's, which says out loud that it is a floor rather than an equality. Neither is derived
+ * from the other, so the service can rename its parameter without rewriting everybody's bookmarks.
+ */
+export const SEVERITY_PARAM = 'severity';
 
 /**
  * How far from the bottom counts as "still following".
@@ -95,7 +106,7 @@ export const AT_BOTTOM_SLACK_PX = 8;
 @Component({
   selector: 'app-logs-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Async, Empty, QitsBadge, QitsButton, RouterLink, SourceStrip],
+  imports: [Async, Empty, LensSelect, QitsBadge, QitsButton, RouterLink, SourceStrip],
   templateUrl: './logs-page.html',
   styleUrls: ['../ui/page.css', './logs-page.css'],
 })
@@ -127,6 +138,17 @@ export class LogsPage {
   /** The service narrowing, or null for every service in the bucket. */
   protected readonly service = computed<string | null>(() => this.params().get(SERVICE_PARAM));
 
+  /**
+   * The severity floor, or null for every severity including the records that carry none.
+   *
+   * Coerced through {@link readSeverityBand} rather than passed through: the service answers a band
+   * it does not know with a `400`, so a hand-edited link would turn a typo into an error screen
+   * where the reader wanted a tail.
+   */
+  protected readonly severityBand = computed<SeverityBand | null>(() =>
+    readSeverityBand(this.params().get(SEVERITY_PARAM)),
+  );
+
   /** The window in minutes, or null for everything still buffered. */
   protected readonly since = computed<number | null>(() =>
     readWindow(this.params().get(SINCE_PARAM)),
@@ -154,6 +176,27 @@ export class LogsPage {
   /** The services that have reported into this bucket. Arrived with the source; costs nothing. */
   protected readonly services = computed<readonly string[]>(
     () => this.sourceRow()?.services.map((service) => service.name) ?? [],
+  );
+
+  /**
+   * The service dropdown's rows, each carrying what that service has actually logged.
+   *
+   * The count is the point of putting it here: a bucket routinely holds a service that exports
+   * spans and no logs at all, and choosing it produces an empty tail that reads as a broken
+   * exporter. A `0 logs` beside the name answers that before the click rather than after it.
+   */
+  protected readonly serviceOptions = computed<readonly LensOption[]>(
+    () =>
+      this.sourceRow()?.services.map((service) => ({
+        value: service.name,
+        label: service.name,
+        detail: `${formatCount(service.logs)} logs`,
+      })) ?? [],
+  );
+
+  /** The six bands, as the dropdown's rows. Every one of them is a floor — see `ui/severity.ts`. */
+  protected readonly severityOptions = computed<readonly LensOption[]>(() =>
+    SEVERITY_BANDS.map((band) => ({ value: band.value, label: band.label })),
   );
 
   /** How many records on screen carry no severity at all, so the tail can say it once. */
@@ -222,10 +265,26 @@ export class LogsPage {
   protected readonly emptyReason = computed(() => {
     const search = this.search().trim();
     const service = this.service();
+    const band = this.severityBand();
     const since = this.since();
     const row = this.sourceRow();
     const label = row?.label ?? this.source() ?? 'this source';
 
+    if (band) {
+      const narrowed = [
+        service ? `from ${service}` : '',
+        search ? `matching “${search}”` : '',
+        since === null ? '' : `in the last ${windowLabel(since)}`,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return (
+        `Nothing in ${label} ${narrowed ? `${narrowed} ` : ''}reaches ${band}. The band is a ` +
+        'floor applied by the service, so quieter records are excluded and so are records that ' +
+        'carry no severity at all — an exporter may simply not be stamping one. Choose Any ' +
+        'severity to see everything this bucket holds.'
+      );
+    }
     if (service && !this.services().includes(service)) {
       return (
         `No service called ${service} has reported into ${label}. The filter is still applied — ` +
@@ -304,6 +363,7 @@ export class LogsPage {
         source: this.source(),
         service: this.service(),
         query: this.search(),
+        minSeverity: this.severityBand(),
         sinceMinutes: this.since(),
       };
       void this.load(query);
@@ -374,14 +434,14 @@ export class LogsPage {
     await this.merge({ [QUERY_PARAM]: null });
   }
 
-  /** The service narrowing, as a navigation. Choosing the current one clears it. */
+  /** The service narrowing, as a navigation. The dropdown's "All services" row clears it. */
   protected async setService(name: string | null): Promise<void> {
-    const next = name && name !== this.service() ? name : null;
-    await this.merge({ [SERVICE_PARAM]: next });
+    await this.merge({ [SERVICE_PARAM]: name });
   }
 
-  protected isService(name: string | null): boolean {
-    return this.service() === name;
+  /** The severity floor, as a navigation. "Any severity" clears it back to every record. */
+  protected async setSeverity(band: string | null): Promise<void> {
+    await this.merge({ [SEVERITY_PARAM]: readSeverityBand(band) });
   }
 
   /** The window, as a navigation. "Everything buffered" is spelled as an absent parameter. */
@@ -406,6 +466,7 @@ export class LogsPage {
       source: this.source(),
       service: this.service(),
       query: this.search(),
+      minSeverity: this.severityBand(),
       sinceMinutes: this.since(),
     });
   }
@@ -421,6 +482,7 @@ export class LogsPage {
     source: string | null;
     service: string | null;
     query: string;
+    minSeverity: SeverityBand | null;
     sinceMinutes: number | null;
   }): Promise<void> {
     if (!query.source) {
@@ -437,6 +499,7 @@ export class LogsPage {
             source: query.source,
             service: query.service,
             query: query.query || null,
+            minSeverity: query.minSeverity,
             sinceMinutes: query.sinceMinutes,
             limit: DEFAULT_LIMIT,
           }),
@@ -461,6 +524,7 @@ export class LogsPage {
             source,
             service: this.service(),
             query: this.search() || null,
+            minSeverity: this.severityBand(),
             sinceMinutes: this.since(),
             limit: DEFAULT_LIMIT,
           }),

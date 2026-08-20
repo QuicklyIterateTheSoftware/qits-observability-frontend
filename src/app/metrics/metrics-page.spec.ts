@@ -150,6 +150,28 @@ describe('MetricsPage', () => {
     await settle();
   }
 
+  /**
+   * Pick a row of a lens dropdown by the words on it, the way a reader does.
+   *
+   * Located through the `<label>` rather than by position, because a page carries several of these
+   * and a positional selector would keep passing while pointing at the wrong lens. The option is
+   * matched on a prefix: a row reads "qits-artifacts · 412 spans", and the count in it is a live
+   * figure this suite has no business spelling.
+   */
+  async function choose(lens: string, option: string): Promise<void> {
+    const label = Array.from(page().querySelectorAll('label.lens-label')).find(
+      (element) => (element.textContent ?? '').trim() === lens,
+    );
+    expect(label, `no lens labelled "${lens}"`).toBeTruthy();
+    const select = page().querySelector<HTMLSelectElement>(`#${label?.getAttribute('for')}`);
+    expect(select, `no dropdown under "${lens}"`).toBeTruthy();
+    const row = Array.from(select?.options ?? []).find((entry) => entry.text.startsWith(option));
+    expect(row, `no row reading "${option}" under "${lens}"`).toBeTruthy();
+    select!.value = row!.value;
+    select!.dispatchEvent(new Event('change'));
+    await settle();
+  }
+
   function rows(): string[][] {
     return Array.from(page().querySelectorAll('tbody tr:not(.group)')).map((row) =>
       Array.from(row.querySelectorAll('td')).map((cell) =>
@@ -251,7 +273,7 @@ describe('MetricsPage', () => {
     flushMetrics();
     await settle();
 
-    await click('qits-ci');
+    await choose('Service', 'qits-ci');
 
     expect(TestBed.inject(Router).url).toContain('service=qits-ci');
     const request = metricRead();

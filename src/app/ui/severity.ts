@@ -36,6 +36,42 @@ export const FATAL_SEVERITY = 21;
 /** What a record with no severity at all is called. Never a level, because none was reported. */
 export const UNSET_LABEL = 'no severity';
 
+/** The band a `?severity=` narrowing names. The six words the service's `minSeverity` accepts. */
+export type SeverityBand = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
+
+/**
+ * The bands the log tail's severity dropdown offers, quietest first.
+ *
+ * **Every one of them is a floor, and the labels say so.** `WARN` on the wire means "13 and above",
+ * which is warnings *and* errors *and* fatals — so a label reading `WARN` alone would promise a
+ * filter nobody asked for and make the ERROR rows underneath look like a bug. `TRACE` is offered
+ * even though it admits almost everything, because it is not the same answer as no filter at all:
+ * it excludes the records that carry no severity, and on a platform where a bridge can emit those
+ * by the hundred that is a genuinely useful thing to ask for.
+ */
+export const SEVERITY_BANDS: readonly { readonly value: SeverityBand; readonly label: string }[] = [
+  { value: 'TRACE', label: 'TRACE and above' },
+  { value: 'DEBUG', label: 'DEBUG and above' },
+  { value: 'INFO', label: 'INFO and above' },
+  { value: 'WARN', label: 'WARN and above' },
+  { value: 'ERROR', label: 'ERROR and above' },
+  { value: 'FATAL', label: 'FATAL only' },
+];
+
+/**
+ * The band a URL asks for, or null.
+ *
+ * **Anything unrecognised reads as no filter**, and that is not laxity — it is the one place this
+ * app is allowed to be lax, because the alternative is worse than either. The service answers a
+ * misspelt `minSeverity` with a `400`, so passing a hand-edited URL parameter straight through
+ * would turn a typo in a shared link into an error screen where the reader wanted a log tail. The
+ * dropdown can only ever produce these six, so the coercion is unreachable from the UI itself.
+ */
+export function readSeverityBand(raw: string | null): SeverityBand | null {
+  const name = (raw ?? '').trim().toUpperCase();
+  return SEVERITY_BANDS.some((band) => band.value === name) ? (name as SeverityBand) : null;
+}
+
 /** A severity as a screen draws it. */
 export interface Severity {
   /** The chip's word: the exporter's own, or the level the number names, or {@link UNSET_LABEL}. */

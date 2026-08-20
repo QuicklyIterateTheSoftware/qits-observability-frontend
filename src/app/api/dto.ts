@@ -359,9 +359,20 @@ export interface TraceListQuery extends ListQuery {
   readonly thresholdMs?: number | null;
 }
 
-/** The log tail's substring, matched case-insensitively over the body **and** the severity text. */
+/**
+ * The log tail's two narrowings.
+ *
+ * `query` is a substring, matched case-insensitively over the body **and** the severity text.
+ *
+ * `minSeverity` is a **floor** on the OTel severity number, named by its band — `WARN` answers
+ * warnings and worse. It is on the wire rather than applied to the answer for the same reason
+ * `limit` is: this endpoint truncates, so filtering what came back would show "the errors among the
+ * last 200 records" while reading as "the last 200 errors". The service refuses a band it does not
+ * know with a `400`, which is why `ui/severity.ts` owns the six words and nothing here builds one.
+ */
 export interface LogQuery extends ListQuery {
   readonly query?: string | null;
+  readonly minSeverity?: string | null;
 }
 
 /** The slow-span lens. `thresholdMs: 0` admits every buffered span, which is the honest default. */

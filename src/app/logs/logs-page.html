@@ -16,8 +16,9 @@
     message="No source is selected, so there is nothing to tail. A log read with no source answers with an empty list rather than an error, so this screen asks for nothing until you name a bucket."
   />
   <p class="note">
-    <a routerLink="/">Choose a source on the overview</a> — it is carried here in the URL and
-    travels with the link.
+    Pick one from the <strong>source dropdown</strong> in the sidebar, or
+    <a routerLink="/">choose it from the table on the overview</a> — either way it is carried here
+    in the URL and travels with the link.
   </p>
 } @else {
   <section class="lenses" aria-label="How this tail is narrowed">
@@ -61,33 +62,31 @@
       </span>
     </div>
 
-    @if (services().length > 0) {
-      <div class="lens">
-        <span class="lens-label" id="lens-service">Service</span>
-        <div class="chips" role="group" aria-labelledby="lens-service">
-          <button
-            type="button"
-            [class.on]="!service()"
-            [attr.aria-pressed]="!service()"
-            (click)="setService(null)"
-          >
-            All
-          </button>
-          @for (name of services(); track name) {
-            <button
-              type="button"
-              [class.on]="isService(name)"
-              [attr.aria-pressed]="isService(name)"
-              (click)="setService(name)"
-            >
-              {{ name }}
-            </button>
-          }
-        </div>
-        <span class="hint">
-          Drawn from the source row the band already holds, so narrowing costs no extra request.
-        </span>
-      </div>
+    <app-lens-select
+      label="Severity"
+      allLabel="Any severity"
+      [value]="severityBand()"
+      [options]="severityOptions()"
+      (changed)="setSeverity($event)"
+    >
+      Every band is a <strong>floor</strong>, applied by the service before the answer is cut — so
+      <code>WARN and above</code> is the last 200 warnings-or-worse, not the warnings among the last
+      200 records. A band also excludes records carrying no severity at all, because none of them
+      claims to reach one.
+    </app-lens-select>
+
+    @if (serviceOptions().length > 0) {
+      <app-lens-select
+        label="Service"
+        allLabel="All services"
+        [value]="service()"
+        [options]="serviceOptions()"
+        (changed)="setService($event)"
+      >
+        Drawn from the source row the band already holds, so narrowing costs no extra request. The
+        figure beside each name is how many <em>logs</em> it has here — a service that exports spans
+        only sits at zero, which is why its tail comes back empty.
+      </app-lens-select>
     }
 
     <div class="lens">

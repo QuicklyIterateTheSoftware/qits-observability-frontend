@@ -19,6 +19,7 @@ import { TelemetryBuffer } from '../buffer/telemetry-buffer';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { formatCount, formatStamp, plural, shortId } from '../ui/format';
+import { LensSelect, type LensOption } from '../ui/lens-select';
 import { LOADING, describeError, failed, ready, IDLE, type Loadable } from '../ui/loadable';
 import { restartEmptied } from '../ui/restart';
 import { tickingNow } from '../ui/ticker';
@@ -79,7 +80,7 @@ export const THRESHOLD_PRESETS = [0, 10, 100, 500, 1000] as const;
 @Component({
   selector: 'app-traces-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Async, Empty, QitsBadge, QitsButton, RouterLink, SourceStrip],
+  imports: [Async, Empty, LensSelect, QitsBadge, QitsButton, RouterLink, SourceStrip],
   templateUrl: './traces-page.html',
   styleUrls: ['../ui/page.css', './traces-page.css'],
 })
@@ -131,12 +132,26 @@ export class TracesPage {
     return state.kind === 'ready' ? state.value.traces : [];
   });
 
-  /** The selected source's own row, which is where the service chips come from — at no cost. */
+  /** The selected source's own row, which is where the service dropdown comes from — at no cost. */
   protected readonly sourceRow = computed(() => this.buffer.source(this.source()));
 
   /** The services that have reported into this bucket. Arrived with the source; costs nothing. */
   protected readonly services = computed<readonly string[]>(
     () => this.sourceRow()?.services.map((service) => service.name) ?? [],
+  );
+
+  /**
+   * The service dropdown's rows, each carrying the span count that decides whether it can appear in
+   * a trace list at all. A service at zero spans is one that only logs, and narrowing to it
+   * produces an empty list that reads as a broken exporter unless the figure said so first.
+   */
+  protected readonly serviceOptions = computed<readonly LensOption[]>(
+    () =>
+      this.sourceRow()?.services.map((service) => ({
+        value: service.name,
+        label: service.name,
+        detail: `${formatCount(service.spans)} spans`,
+      })) ?? [],
   );
 
   /**
@@ -275,14 +290,9 @@ export class TracesPage {
     await this.setThreshold(Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0);
   }
 
-  /** The service narrowing, as a navigation. Choosing the current one clears it. */
+  /** The service narrowing, as a navigation. The dropdown's "All services" row clears it. */
   protected async setService(name: string | null): Promise<void> {
-    const next = name && name !== this.service() ? name : null;
-    await this.merge({ [SERVICE_PARAM]: next });
-  }
-
-  protected isService(name: string | null): boolean {
-    return this.service() === name;
+    await this.merge({ [SERVICE_PARAM]: name });
   }
 
   /** What a trace's marker should say about itself, or the empty string. */

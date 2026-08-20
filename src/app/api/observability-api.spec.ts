@@ -142,6 +142,26 @@ describe('ObservabilityApi', () => {
     await plain;
   });
 
+  it('sends the severity band when there is one, and nothing at all when there is not', async () => {
+    const banded = api.logs({ source: 's', minSeverity: 'WARN' });
+    const withBand = http.expectOne(
+      (candidate) => candidate.url === '/observability/api/telemetry/logs',
+    );
+    expect(withBand.request.params.get('minSeverity')).toBe('WARN');
+    withBand.flush({ logs: [], total: 0, truncated: false });
+    await banded;
+
+    // Null is "every severity", and it must be an absent parameter rather than an empty one: the
+    // service refuses a band it cannot parse with a 400, and the empty string is one of those.
+    const plain = api.logs({ source: 's', minSeverity: null });
+    const request = http.expectOne(
+      (candidate) => candidate.url === '/observability/api/telemetry/logs',
+    );
+    expect(request.request.params.has('minSeverity')).toBe(false);
+    request.flush({ logs: [], total: 0, truncated: false });
+    await plain;
+  });
+
   it('sends thresholdMs 0 rather than dropping it — zero is the lens, not an absence', async () => {
     const spans = api.slowSpans({ source: 's', thresholdMs: 0 });
     const request = http.expectOne(

@@ -130,11 +130,18 @@ export class ObservabilityApi {
    *
    * `query` matches case-insensitively over the body **and** the severity text, which surprises
    * anyone who searches for "error" — so the field that feeds this says so in its placeholder.
+   *
+   * `minSeverity` is the severity band, and it is a floor. It goes on the wire because the service
+   * truncates before answering: a screen that filtered the 200 records it got back would be showing
+   * the errors *within* a page the buffer had already cut.
    */
   logs(query: LogQuery): Promise<LogsResponse> {
     let params = this.list(query);
     if (query.query) {
       params = params.set('query', query.query);
+    }
+    if (query.minSeverity) {
+      params = params.set('minSeverity', query.minSeverity);
     }
     return firstValueFrom(this.http.get<LogsResponse>(`${this.root}/logs`, { params }));
   }
