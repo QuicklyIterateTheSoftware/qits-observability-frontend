@@ -1,12 +1,12 @@
 import { provideBrowserGlobalErrorListeners, type ApplicationConfig } from '@angular/core';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { provideQitsNavigation } from '@qits/ui-components';
+import { provideQitsNavigation, provideQitsProjects } from '@qits/ui-components';
 
 import { routes } from './app.routes';
 
 /**
- * Four providers, in the order every sibling SPA lists them. The third was missing here until this
+ * Five providers, in the order every sibling SPA lists them. The third was missing here until this
  * application started making requests.
  *
  * - `provideBrowserGlobalErrorListeners` funnels genuinely-global errors and unhandled rejections
@@ -28,6 +28,12 @@ import { routes } from './app.routes';
  * `/observability/` with no machine token and no CORS. `/main-navigation` is the one address that
  * is not under this app's own base path, and deliberately so — the gateway's root is the only
  * address every SPA can spell the same way.
+ * - `provideQitsProjects` puts the project picker in the chrome's top-left slot, where the wordmark
+ *   was, from one `GET /projects/api/projects`. Every resource on this platform belongs to a
+ *   project, so which one is open is the outermost fact about a page rather than a filter inside
+ *   one of them — above the links, because it scopes them. It also installs the library's default
+ *   scope, which carries a pick in `?project=` on the current URL; the pages here do not read that
+ *   parameter yet, and the picker is the chrome's regardless of which of them have been scoped.
  */
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -35,5 +41,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withFetch()),
     provideQitsNavigation(),
+    provideQitsProjects(),
   ],
 };
