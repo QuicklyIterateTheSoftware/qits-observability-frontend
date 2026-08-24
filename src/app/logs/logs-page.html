@@ -1,6 +1,9 @@
 <header class="head">
   <div>
     <h1>Logs</h1>
+    @if (scoped.name(); as project) {
+      <p class="project-scope">{{ project }}</p>
+    }
     <p class="lede">
       The buffered log records of one bucket, oldest at the top and newest at the bottom. One
       request, however you narrow it.
@@ -17,8 +20,8 @@
   />
   <p class="note">
     Pick one from the <strong>source dropdown</strong> in the sidebar, or
-    <a routerLink="/">choose it from the table on the overview</a> — either way it is carried here
-    in the URL and travels with the link.
+    <a [routerLink]="scoped.commands()">choose it from the table on the overview</a> — either way it
+    is carried here in the URL and travels with the link.
   </p>
 } @else {
   <section class="lenses" aria-label="How this tail is narrowed">
@@ -157,7 +160,7 @@
             @if (log.traceId) {
               <a
                 class="trace mono"
-                [routerLink]="['/traces', log.traceId]"
+                [routerLink]="[...scoped.commands(), 'traces', log.traceId]"
                 [queryParams]="{ source: source() }"
                 >trace</a
               >

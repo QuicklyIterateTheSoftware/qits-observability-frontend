@@ -1,7 +1,7 @@
 <p class="crumbs">
-  <a routerLink="/">Overview</a>
+  <a [routerLink]="scoped.commands()">Overview</a>
   <span class="sep" aria-hidden="true">/</span>
-  <a routerLink="/traces" [queryParams]="{ source: source() }">Traces</a>
+  <a [routerLink]="[...scoped.commands(), 'traces']" [queryParams]="{ source: source() }">Traces</a>
   <span class="sep" aria-hidden="true">/</span>
   <span class="mono">{{ traceId() }}</span>
 </p>
@@ -9,6 +9,9 @@
 <header class="head">
   <div>
     <h1>{{ heading() || 'Trace' }}</h1>
+    @if (scoped.name(); as project) {
+      <p class="project-scope">{{ project }}</p>
+    }
     @if (rows().length > 0) {
       <p class="lede">
         {{ summary() }} <span class="sep" aria-hidden="true">·</span> started {{ started() }}
@@ -25,7 +28,8 @@
     message="No source is selected, so this trace cannot be read. A trace read with no source answers with an empty trace rather than an error — which looks exactly like an evicted trace — so this screen asks for nothing until you name a bucket."
   />
   <p class="note">
-    <a routerLink="/">Choose a source on the overview</a>, then come back through the trace list.
+    <a [routerLink]="scoped.commands()">Choose a source on the overview</a>, then come back through
+    the trace list.
   </p>
 } @else {
   <app-async

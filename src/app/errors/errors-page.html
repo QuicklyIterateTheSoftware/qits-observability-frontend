@@ -1,6 +1,9 @@
 <header class="head">
   <div>
     <h1>Errors</h1>
+    @if (scoped.name(); as project) {
+      <p class="project-scope">{{ project }}</p>
+    }
     <p class="lede">
       Every ERROR span and every ERROR log in one bucket, grouped by the trace they belong to. One
       request, however you narrow it.
@@ -17,8 +20,8 @@
   />
   <p class="note">
     Pick one from the <strong>source dropdown</strong> in the sidebar, or
-    <a routerLink="/">choose it from the table on the overview</a> — either way it is carried here
-    in the URL and travels with the link.
+    <a [routerLink]="scoped.commands()">choose it from the table on the overview</a> — either way it
+    is carried here in the URL and travels with the link.
   </p>
 } @else {
   <section class="lenses" aria-label="How this list is narrowed">
@@ -113,7 +116,7 @@
                 } @else {
                   <a
                     class="mono"
-                    [routerLink]="['/traces', view.traceId]"
+                    [routerLink]="[...scoped.commands(), 'traces', view.traceId]"
                     [queryParams]="{ source: source() }"
                   >
                     {{ shortId(view.traceId) }}

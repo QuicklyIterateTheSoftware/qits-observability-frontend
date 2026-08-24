@@ -14,6 +14,7 @@ import { ObservabilityApi } from '../api/observability-api';
 import { SOURCE_PARAM, selectedSource } from '../buffer/selected-source';
 import { SourceStrip } from '../buffer/source-strip';
 import { TelemetryBuffer } from '../buffer/telemetry-buffer';
+import { injectScopedProject } from '../nav/scoped-project';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { formatCount, formatStamp, plural } from '../ui/format';
@@ -54,6 +55,9 @@ import { EMPTY_WATERFALL, formatDuration, layOutTrace, type WaterfallRow } from 
   styleUrls: ['../ui/page.css', './trace-page.css'],
 })
 export class TracePage {
+  /** The project the address names — what the header says and what every in-app link keeps. */
+  protected readonly scoped = injectScopedProject();
+
   private readonly api = inject(ObservabilityApi);
   private readonly buffer = inject(TelemetryBuffer);
   private readonly route = inject(ActivatedRoute);

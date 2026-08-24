@@ -1,6 +1,9 @@
 <header class="head">
   <div>
     <h1>Traces</h1>
+    @if (scoped.name(); as project) {
+      <p class="project-scope">{{ project }}</p>
+    }
     <p class="lede">
       What one source has been doing, grouped into traces on the server. One request, however you
       narrow it.
@@ -17,8 +20,8 @@
   />
   <p class="note">
     Pick one from the <strong>source dropdown</strong> in the sidebar, or
-    <a routerLink="/">choose it from the table on the overview</a> — either way it is carried here
-    in the URL and travels with the link.
+    <a [routerLink]="scoped.commands()">choose it from the table on the overview</a> — either way it
+    is carried here in the URL and travels with the link.
   </p>
 } @else {
   <section class="lenses" aria-label="How this list is narrowed">
@@ -141,7 +144,10 @@
             @for (trace of traces(); track trace.traceId) {
               <tr [class.errored]="trace.errorSpanCount > 0">
                 <th scope="row" class="root">
-                  <a [routerLink]="['/traces', trace.traceId]" [queryParams]="{ source: source() }">
+                  <a
+                    [routerLink]="[...scoped.commands(), 'traces', trace.traceId]"
+                    [queryParams]="{ source: source() }"
+                  >
                     {{ trace.rootName || '(unnamed span)' }}
                   </a>
                   @if (trace.rootMissing) {
@@ -163,7 +169,10 @@
                 <td class="services">{{ trace.services.join(', ') || '—' }}</td>
                 <td class="stamp">{{ age(trace.startEpochNanos) }}</td>
                 <td class="mono">
-                  <a [routerLink]="['/traces', trace.traceId]" [queryParams]="{ source: source() }">
+                  <a
+                    [routerLink]="[...scoped.commands(), 'traces', trace.traceId]"
+                    [queryParams]="{ source: source() }"
+                  >
                     {{ shortId(trace.traceId) }}
                   </a>
                 </td>

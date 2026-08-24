@@ -1,4 +1,4 @@
-import type { Routes } from '@angular/router';
+import type { Route, Routes } from '@angular/router';
 import { QitsMainLayout } from '@qits/ui-components';
 import { ErrorsPage } from './errors/errors-page';
 import { LogsPage } from './logs/logs-page';
@@ -34,9 +34,9 @@ import { TracesPage } from './traces/traces-page';
  * Everything loads eagerly. There are eight routes, they share every component below them, and a
  * lazy chunk boundary here would be ceremony that costs a round trip.
  *
- * The `**` route sits *inside* the children — see {@link NotFound} for why that differs from
- * spa-home's. Without it an unknown URL under `/observability/` rendered blank chrome, which reads
- * as a screen that failed rather than as a page that does not exist.
+ * The `**` route sits *inside* the children — see {@link NotFound} for why. Without it an unknown
+ * URL rendered blank chrome, which reads as a screen that failed rather than as a page that does
+ * not exist.
  *
  * **Every route here is now a real screen.** A `PendingPage` stood behind the unwritten ones so
  * that the route table was the whole route table from the first commit — addressable, carrying the
@@ -44,19 +44,34 @@ import { TracesPage } from './traces/traces-page';
  * chrome. `/metrics` was the last one standing behind it, so that component is gone with it.
  */
 
+const OWN: Routes = [
+  { path: '', component: OverviewPage },
+  { path: 'traces', component: TracesPage },
+  { path: 'traces/:traceId', component: TracePage },
+  { path: 'spans', component: SpansPage },
+  { path: 'errors', component: ErrorsPage },
+  { path: 'logs', component: LogsPage },
+  { path: 'metrics', component: MetricsPage },
+];
+
+/**
+ * The same seven addresses under a project slug — `/qits/traces` beside `/traces`.
+ *
+ * **Order is the whole guard.** The literal routes above are matched first, so `traces`, `spans`,
+ * `errors`, `logs` and `metrics` stay this app's own screens and never read as projects of those
+ * names; only what none of them claim falls through to `:project`. A page never reads this
+ * parameter: it asks `QITS_SCOPE`, which parses the address the same way in both forms, so one
+ * component serves both.
+ *
+ * This app is project scoped and not repository scoped: the buffer carries no project and no
+ * repository row, so a scope here says where the reader came from rather than what is drawn.
+ */
+const SCOPED: Route = { path: ':project', children: OWN };
+
 export const routes: Routes = [
   {
     path: '',
     component: QitsMainLayout,
-    children: [
-      { path: '', component: OverviewPage },
-      { path: 'traces', component: TracesPage },
-      { path: 'traces/:traceId', component: TracePage },
-      { path: 'spans', component: SpansPage },
-      { path: 'errors', component: ErrorsPage },
-      { path: 'logs', component: LogsPage },
-      { path: 'metrics', component: MetricsPage },
-      { path: '**', component: NotFound },
-    ],
+    children: [...OWN, SCOPED, { path: '**', component: NotFound }],
   },
 ];

@@ -1,14 +1,21 @@
 # QitsSpaObservability
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
-served by qits-observability itself at `/observability/` through Quinoa. Seven screens, no forms,
-and no writes at all.
+served by qits-observability itself at the root of `observability.<env>.<domain>` through Quinoa.
+Seven screens, no forms, and no writes at all.
+
+**Every screen is reachable twice**: at the root and under a project slug — `/qits/traces` is the
+same page as `/traces`. The literal routes are matched first, so `traces`, `spans`, `errors`, `logs`
+and `metrics` stay this app's own screens and never read as projects of those names. The scope is
+read from the address by `@qits/ui-components` (`provideQitsScope('project')`), never from a route
+parameter, and it is drawn in the page header and nowhere else: the buffer carries no project, so a
+scope here says where the reader came from rather than what is shown.
 
 **Which application you are reading is a dropdown in the chrome.** Every screen below reads one
 bucket of the buffer, named by `?source=`, and that bucket is chosen from a `qits-picker` in the
 platform sidebar — offered under this application's own navigation entry, so it is on screen
 wherever you are and it lists every source with what it holds. It used to be a table on the overview
-and nothing else, which meant a link to `/observability/logs` landed on "no source is selected" and
+and nothing else, which meant a link to `/logs` landed on "no source is selected" and
 a sentence pointing back at a page the reader had not been on. Changing the source keeps every lens
 except `?service=`, because a service name belongs to the bucket it was chosen in.
 
@@ -17,22 +24,22 @@ except `?service=`, because a service name belongs to the bucket it was chosen i
 this SPA costs more than 3 requests cold. The budgets below are asserted in the specs, not merely
 written down here.
 
-- **`/observability/`** — the overview. The buffer's own state, every source with its per-signal
+- **`/`** — the overview. The buffer's own state, every source with its per-signal
   counts and its per-service breakdown, and the ephemerality stated in full. **2 + 0**: the two
   shell reads and nothing per source, because a source's counts and its service breakdown arrive
   with its row. Expanding a source costs nothing, and selecting one costs nothing — selection is a
   query parameter the next screen reads.
-- **`/observability/traces`** — the trace list, Recent or Slowest. **+1**
+- **`/traces`** — the trace list, Recent or Slowest. **+1**
   (`GET /telemetry/traces?source=&service=&sort=&thresholdMs=&limit=`), every 10 s. It stays one
   request however you narrow it: the lens, the duration floor and the service each change _that_
   request rather than adding another, and the service dropdown is drawn from the source row the band
   already holds. With no source selected it is **+0** — a read with no source answers `200` and an
   empty list, so firing one would spend a request to say "no telemetry" about a bucket nobody chose.
-- **`/observability/traces/<traceId>`** — the waterfall, the span detail pane and the correlated
+- **`/traces/<traceId>`** — the waterfall, the span detail pane and the correlated
   logs. **+1** (`GET /telemetry/traces/{traceId}?source=`). It does not poll: a trace is a finished
   thing, and a manual refresh covers late spans. The spans and their correlated logs arrive in the
   same answer, so the log rail costs nothing on top, and selecting a span costs nothing either.
-- **`/observability/spans`** — every buffered span of the bucket as rows, narrowed by four
+- **`/spans`** — every buffered span of the bucket as rows, narrowed by four
   dropdowns: service, duration floor, order and window. **+1**
   (`GET /telemetry/slow-spans?source=&service=&thresholdMs=&sinceMinutes=&sort=&limit=`), every
   10 s. **The floor defaults to 0, not to the endpoint's own 500**: the filter is `>=`, so zero
@@ -40,13 +47,13 @@ written down here.
   exists for. The trace list groups spans and the waterfall draws one trace's; until this screen
   existed, seeing a span meant already knowing which trace it was in, and the endpoint had no reader
   at all. With no source selected it is **+0**.
-- **`/observability/errors`** — one card per trace, its error spans and its ERROR logs together.
+- **`/errors`** — one card per trace, its error spans and its ERROR logs together.
   **+1** (`GET /telemetry/errors?source=&service=&sinceMinutes=&limit=`), every 10 s. It stays one
   request however you narrow it, and **expanding a card costs nothing**: a group arrives with its
   spans, its logs and their stack traces inside it. With no source selected it is **+0** — and on
   this screen more than any other, because a sourceless read answers `200` with an empty list and
   "no errors" is far too reassuring a thing to say by accident.
-- **`/observability/logs`** — the log tail, with search, a severity dropdown, a service dropdown
+- **`/logs`** — the log tail, with search, a severity dropdown, a service dropdown
   and a follow mode. **+1**
   (`GET /telemetry/logs?source=&service=&query=&minSeverity=&sinceMinutes=&limit=`), every 5 s while
   Follow is on and **not at all while it is off**. **The severity band is on the wire, not applied
@@ -54,7 +61,7 @@ written down here.
   truncates, so a screen that filtered its own 200 records would be showing the errors _within_ a
   page the buffer had already cut, while reading as the last 200 errors. With no source selected it
   is **+0**.
-- **`/observability/metrics`** — every metric series the bucket holds, grouped by name and shown at
+- **`/metrics`** — every metric series the bucket holds, grouped by name and shown at
   its latest value. **+1** (`GET /telemetry/metrics?source=&service=`), every 10 s. The **name box
   costs nothing at all**: one read holds every series a bucket has — one point per series, capped at
   500 — so it narrows what is already on the page. With no source selected it is **+0**.
@@ -298,9 +305,10 @@ ng serve
 ```
 
 Once the server is running, open `http://localhost:4200/`. The application reloads whenever you
-modify a source file. `ng serve` puts no gateway in front; in a deployment every call is a
-same-origin path behind the real one, which is what carries the browser's session cookie to
-`/observability/api/telemetry/…` with no machine token and no CORS.
+modify a source file. `proxy.conf.json` forwards `/observability/api`, `/main-navigation` and
+`/projects/api` to an edge on `localhost:8080`, because `ng serve` puts no edge in front. In a
+deployment every call is a same-origin path on this service's own host, which is what carries the
+browser's session cookie to `/observability/api/telemetry/…` with no machine token and no CORS.
 
 ## Running unit tests
 
