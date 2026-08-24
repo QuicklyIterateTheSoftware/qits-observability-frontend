@@ -5,6 +5,7 @@ import type { SourceKind, TelemetrySourceDto } from '../api/dto';
 import { SOURCE_PARAM, selectedSource } from '../buffer/selected-source';
 import { SourceStrip } from '../buffer/source-strip';
 import { TelemetryBuffer } from '../buffer/telemetry-buffer';
+import { injectScopedProject } from '../nav/scoped-project';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { formatBytes, formatCount, formatElapsed, formatInstant, formatStamp } from '../ui/format';
@@ -47,6 +48,9 @@ import { tickingNow } from '../ui/ticker';
   styleUrls: ['../ui/page.css', './overview-page.css'],
 })
 export class OverviewPage {
+  /** The project the address names — what the header says and what every in-app link keeps. */
+  protected readonly scoped = injectScopedProject();
+
   protected readonly buffer = inject(TelemetryBuffer);
   private readonly router = inject(Router);
   private readonly selected = selectedSource();

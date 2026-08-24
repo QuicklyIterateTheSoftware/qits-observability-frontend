@@ -16,6 +16,7 @@ import { ObservabilityApi } from '../api/observability-api';
 import { selectedSource } from '../buffer/selected-source';
 import { SourceStrip } from '../buffer/source-strip';
 import { TelemetryBuffer } from '../buffer/telemetry-buffer';
+import { injectScopedProject } from '../nav/scoped-project';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { formatCount, formatStamp, plural, shortId } from '../ui/format';
@@ -78,6 +79,9 @@ export const SERVICE_PARAM = 'service';
   styleUrls: ['../ui/page.css', './errors-page.css'],
 })
 export class ErrorsPage {
+  /** The project the address names — what the header says and what every in-app link keeps. */
+  protected readonly scoped = injectScopedProject();
+
   private readonly api = inject(ObservabilityApi);
   private readonly buffer = inject(TelemetryBuffer);
   private readonly route = inject(ActivatedRoute);

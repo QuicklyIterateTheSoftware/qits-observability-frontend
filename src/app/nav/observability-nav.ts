@@ -1,18 +1,23 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink, convertToParamMap } from '@angular/router';
-import { QitsPicker, type QitsPickerOption } from '@qits/ui-components';
+import { QITS_SCOPE, QitsPicker, scopeCommands, type QitsPickerOption } from '@qits/ui-components';
 import { SOURCE_PARAM } from '../buffer/selected-source';
 import { TelemetryBuffer } from '../buffer/telemetry-buffer';
 import { formatCount } from '../ui/format';
 
-/** The screens a chosen source can be looked at through, in the order a reader works down them. */
-const SCREENS: readonly { readonly path: string; readonly label: string }[] = [
-  { path: '/traces', label: 'Traces' },
-  { path: '/spans', label: 'Spans' },
-  { path: '/errors', label: 'Errors' },
-  { path: '/logs', label: 'Logs' },
-  { path: '/metrics', label: 'Metrics' },
+/**
+ * The screens a chosen source can be looked at through, in the order a reader works down them.
+ *
+ * `segment` and not a path: the address a link goes to depends on the project in scope, so the
+ * commands are built per render from `QITS_SCOPE` rather than frozen here.
+ */
+const SCREENS: readonly { readonly segment: string; readonly label: string }[] = [
+  { segment: 'traces', label: 'Traces' },
+  { segment: 'spans', label: 'Spans' },
+  { segment: 'errors', label: 'Errors' },
+  { segment: 'logs', label: 'Logs' },
+  { segment: 'metrics', label: 'Metrics' },
 ];
 
 /**
@@ -66,10 +71,12 @@ const SCREENS: readonly { readonly path: string; readonly label: string }[] = [
 
         @if (selected()) {
           <ul class="links">
-            <li><a routerLink="/" [queryParams]="scope()">Overview</a></li>
-            @for (screen of screens; track screen.path) {
+            <li>
+              <a [routerLink]="ownBase()" [queryParams]="scope()">Overview</a>
+            </li>
+            @for (screen of screens(); track screen.label) {
               <li>
-                <a [routerLink]="screen.path" [queryParams]="scope()">{{ screen.label }}</a>
+                <a [routerLink]="screen.commands" [queryParams]="scope()">{{ screen.label }}</a>
               </li>
             }
           </ul>
@@ -122,7 +129,22 @@ export class ObservabilityNav {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  protected readonly screens = SCREENS;
+  /**
+   * The project the address names. Optional: a spec that renders this menu alone gets the unscoped
+   * answer, which is what the menu shows at the root of this host.
+   */
+  private readonly projectScope = inject(QITS_SCOPE, { optional: true });
+
+  /** Where this app's own addresses start, inside the project on screen. */
+  protected readonly ownBase = computed(() => scopeCommands(this.projectScope?.scope() ?? {}));
+
+  /** The screen links, each one inside the scope the reader arrived in. */
+  protected readonly screens = computed(() =>
+    SCREENS.map((screen) => ({
+      label: screen.label,
+      commands: [...this.ownBase(), screen.segment],
+    })),
+  );
 
   /**
    * The query parameters, read off the root route.

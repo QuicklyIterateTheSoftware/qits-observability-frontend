@@ -276,7 +276,9 @@ describe('OverviewPage', () => {
   });
 
   it('draws a 404 with the chrome around it rather than blank chrome', async () => {
-    await open('/nope');
+    // Two segments, because one is now the project form: `/nope` reads as a project this platform
+    // does not have, and the overview is the honest answer there.
+    await open('/nope/nowhere');
     await settle();
 
     // No band, and therefore no requests: a page that does not exist has no buffer to describe.

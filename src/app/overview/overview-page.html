@@ -1,6 +1,9 @@
 <header class="head">
   <div>
     <h1>Observability</h1>
+    @if (scoped.name(); as project) {
+      <p class="project-scope">{{ project }}</p>
+    }
     <p class="lede">
       What this platform is reporting about itself, right now, from the buffer holding it.
     </p>
@@ -175,11 +178,29 @@
 
       @if (selectedKey()) {
         <nav class="onward" aria-label="Screens for the selected source">
-          <a [routerLink]="['/traces']" [queryParams]="{ source: selectedKey() }">Traces</a>
-          <a [routerLink]="['/spans']" [queryParams]="{ source: selectedKey() }">Spans</a>
-          <a [routerLink]="['/errors']" [queryParams]="{ source: selectedKey() }">Errors</a>
-          <a [routerLink]="['/logs']" [queryParams]="{ source: selectedKey() }">Logs</a>
-          <a [routerLink]="['/metrics']" [queryParams]="{ source: selectedKey() }">Metrics</a>
+          <a
+            [routerLink]="[...scoped.commands(), 'traces']"
+            [queryParams]="{ source: selectedKey() }"
+            >Traces</a
+          >
+          <a
+            [routerLink]="[...scoped.commands(), 'spans']"
+            [queryParams]="{ source: selectedKey() }"
+            >Spans</a
+          >
+          <a
+            [routerLink]="[...scoped.commands(), 'errors']"
+            [queryParams]="{ source: selectedKey() }"
+            >Errors</a
+          >
+          <a [routerLink]="[...scoped.commands(), 'logs']" [queryParams]="{ source: selectedKey() }"
+            >Logs</a
+          >
+          <a
+            [routerLink]="[...scoped.commands(), 'metrics']"
+            [queryParams]="{ source: selectedKey() }"
+            >Metrics</a
+          >
         </nav>
       } @else {
         <p class="note">
