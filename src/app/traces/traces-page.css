@@ -168,6 +168,83 @@ tr.errored > :first-child {
   box-shadow: inset 3px 0 0 #b91c1c;
 }
 
+/* One card per path. The disclosure and its drawn chevron come from ui/page.css; the card shape
+   follows the errors list's, but with a neutral rule — a path is not a failure, and only turns
+   red-ruled when at least one of its traces errored. */
+.groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.group {
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: #fff;
+}
+
+.group.errored-group {
+  border-left-color: #b91c1c;
+}
+
+.group-head .disclosure {
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  color: #111827;
+}
+
+.group-head .chevron {
+  margin-top: 0.35em;
+  flex: none;
+  color: #6b7280;
+}
+
+/* The path is the card's subject: monospace because it is a route, wrapping because it can be
+   long, and never truncated — a clipped path is a different path. */
+.path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* A group keyed by a span name rather than a route — a non-HTTP root, or one whose attributes were
+   evicted. The proportional face is the distinction: a name is prose, a route is code. */
+.path.named {
+  font-family: inherit;
+  font-size: 1em;
+}
+
+.group-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 0.15rem;
+  margin: 0.15rem 0 0 1.05rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.group-meta .sep {
+  padding: 0 0.4rem;
+  color: #9ca3af;
+}
+
+.group-meta qits-badge {
+  margin-left: 0.5rem;
+}
+
+.members {
+  margin: 0.7rem 0 0 1.05rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid #f3f4f6;
+}
+
 .note code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.95em;

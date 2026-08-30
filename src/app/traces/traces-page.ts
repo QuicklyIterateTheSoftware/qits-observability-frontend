@@ -24,6 +24,7 @@ import { LensSelect, type LensOption } from '../ui/lens-select';
 import { LOADING, describeError, failed, ready, IDLE, type Loadable } from '../ui/loadable';
 import { restartEmptied } from '../ui/restart';
 import { tickingNow } from '../ui/ticker';
+import { viewTraceGroups } from './trace-group';
 import { formatDuration } from './trace-layout';
 
 /**
@@ -49,6 +50,14 @@ export const THRESHOLD_PARAM = 'threshold';
 /** The per-service narrowing, as a query parameter. */
 export const SERVICE_PARAM = 'service';
 
+/**
+ * How the list is drawn, as a query parameter: `?view=flat`, and nothing else. Grouped is the
+ * default and is spelled as an absent parameter. Unlike the other lenses this one changes no
+ * request — it is URL state for the house rule's other half: this screen is a link somebody can
+ * send, and the back button means "the list the way I was reading it".
+ */
+export const VIEW_PARAM = 'view';
+
 /** The floors the toggle offers. Zero is first and is the default: it admits everything. */
 export const THRESHOLD_PRESETS = [0, 10, 100, 500, 1000] as const;
 
@@ -71,6 +80,12 @@ export const THRESHOLD_PRESETS = [0, 10, 100, 500, 1000] as const;
  * **Every lens is URL state.** The source, the sort, the threshold and the service each change what
  * comes back, so by the house rule none of them hides in the component: this screen is a link
  * somebody can send, and the back button means "the list I was looking at".
+ *
+ * **The list starts grouped by path.** One entry per route, folded client-side from the page the
+ * one request already paid for — grouping here costs no read, because the member rows have to
+ * travel anyway for an expanded group to show them. The `view` lens (`?view=flat`) is URL state
+ * like the others but changes no request; which groups are open is purely presentational and stays
+ * a signal, as the errors page's does.
  *
  * **The threshold is on the endpoint.** It was once only on `slow-spans`; it is on `traces` too,
  * measured rather than assumed, so the floor is applied where the grouping happens instead of
@@ -102,6 +117,7 @@ export class TracesPage {
 
   protected readonly formatCount = formatCount;
   protected readonly formatDuration = formatDuration;
+  protected readonly plural = plural;
   protected readonly shortId = shortId;
   protected readonly sourceParam = SOURCE_PARAM;
   protected readonly presets = THRESHOLD_PRESETS;
@@ -122,6 +138,11 @@ export class TracesPage {
   /** The service narrowing, or null for every service in the bucket. */
   protected readonly service = computed<string | null>(() => this.params().get(SERVICE_PARAM));
 
+  /** How the list is drawn. Anything that is not `flat` is `grouped`, the default. */
+  protected readonly view = computed<'grouped' | 'flat'>(() =>
+    this.params().get(VIEW_PARAM) === 'flat' ? 'flat' : 'grouped',
+  );
+
   private readonly state = signal<Loadable<TracesResponse>>(IDLE);
 
   /** Why the last *poll* failed, or the empty string. The list on screen is kept either way. */
@@ -135,6 +156,28 @@ export class TracesPage {
     const state = this.state();
     return state.kind === 'ready' ? state.value.traces : [];
   });
+
+  /** The rows folded into one entry per path. A derivation of {@link traces}, never a request. */
+  protected readonly groups = computed(() => viewTraceGroups(this.traces()));
+
+  /**
+   * Which path groups are expanded. Component state, not URL state, by the same reasoning as the
+   * errors page: it changes no request and is purely presentational. Keys are the route strings
+   * themselves, so an open group stays open across the ten-second poll.
+   */
+  private readonly opened = signal<ReadonlySet<string>>(new Set<string>());
+
+  protected toggle(key: string): void {
+    const opened = new Set(this.opened());
+    if (!opened.delete(key)) {
+      opened.add(key);
+    }
+    this.opened.set(opened);
+  }
+
+  protected isOpen(key: string): boolean {
+    return this.opened().has(key);
+  }
 
   /** The selected source's own row, which is where the service dropdown comes from — at no cost. */
   protected readonly sourceRow = computed(() => this.buffer.source(this.source()));
@@ -172,10 +215,12 @@ export class TracesPage {
     }
     const shown = `Showing ${formatCount(state.value.traces.length)} of ${formatCount(state.value.total)} traces.`;
     const store = this.buffer.storeValue();
+    const grouped =
+      this.view() === 'grouped' ? ' The path groups summarise only these returned traces.' : '';
     if (store && store.evictedSpans > 0) {
-      return `${shown} The buffer has also dropped ${formatCount(store.evictedSpans)} older spans at its cap, so the total itself is what survived.`;
+      return `${shown} The buffer has also dropped ${formatCount(store.evictedSpans)} older spans at its cap, so the total itself is what survived.${grouped}`;
     }
-    return `${shown} Raise the threshold or narrow to one service to see fewer, more specific rows.`;
+    return `${shown} Raise the threshold or narrow to one service to see fewer, more specific rows.${grouped}`;
   });
 
   /**
@@ -297,6 +342,11 @@ export class TracesPage {
   /** The service narrowing, as a navigation. The dropdown's "All services" row clears it. */
   protected async setService(name: string | null): Promise<void> {
     await this.merge({ [SERVICE_PARAM]: name });
+  }
+
+  /** The drawing, as a navigation. Grouped is the default and is spelled as an absent parameter. */
+  protected async setView(view: 'grouped' | 'flat'): Promise<void> {
+    await this.merge({ [VIEW_PARAM]: view === 'flat' ? view : null });
   }
 
   /** What a trace's marker should say about itself, or the empty string. */
