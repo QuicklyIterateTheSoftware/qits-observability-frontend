@@ -5,8 +5,8 @@
       <p class="project-scope">{{ project }}</p>
     }
     <p class="lede">
-      What one source has been doing, grouped into traces on the server. One request, however you
-      narrow it.
+      What one source has been doing, grouped into traces on the server and folded into one entry
+      per path here. One request, however you narrow it.
     </p>
   </div>
   <qits-button variant="secondary" size="sm" (pressed)="refresh()">Refresh</qits-button>
@@ -50,6 +50,35 @@
           sort() === 'recent'
             ? 'Newest first — what just happened.'
             : 'Longest first — what is slow.'
+        }}
+      </span>
+    </div>
+
+    <div class="lens">
+      <span class="lens-label" id="lens-view">View</span>
+      <div class="segmented" role="group" aria-labelledby="lens-view">
+        <button
+          type="button"
+          [class.on]="view() === 'grouped'"
+          [attr.aria-pressed]="view() === 'grouped'"
+          (click)="setView('grouped')"
+        >
+          By path
+        </button>
+        <button
+          type="button"
+          [class.on]="view() === 'flat'"
+          [attr.aria-pressed]="view() === 'flat'"
+          (click)="setView('flat')"
+        >
+          Flat
+        </button>
+      </div>
+      <span class="hint">
+        {{
+          view() === 'grouped'
+            ? 'One entry per path — open one for its traces. Folded here from the same answer.'
+            : 'Every trace as its own row, in the lens’s order.'
         }}
       </span>
     </div>
@@ -119,7 +148,7 @@
       @if (range()) {
         <p class="note">This source holds records from {{ range() }}.</p>
       }
-    } @else {
+    } @else if (view() === 'flat') {
       <div class="scroll">
         <table>
           <caption>
@@ -182,6 +211,103 @@
         </table>
       </div>
 
+    } @else {
+      <ol class="groups">
+        @for (group of groups(); track group.key) {
+          <li class="group" [class.errored-group]="group.erroredTraces > 0">
+            <div class="group-head">
+              <button
+                type="button"
+                class="disclosure"
+                [attr.aria-expanded]="isOpen(group.key)"
+                (click)="toggle(group.key)"
+              >
+                <span class="chevron" aria-hidden="true"></span>
+                <span class="path" [class.named]="!group.routed">{{ group.key }}</span>
+              </button>
+
+              <p class="group-meta">
+                <span>{{ plural(group.traces.length, 'trace') }}</span>
+                <span class="sep" aria-hidden="true">·</span>
+                <span>slowest {{ formatDuration(group.maxDurationMs) }}</span>
+                <span class="sep" aria-hidden="true">·</span>
+                <span class="stamp">{{ age(group.latestStartEpochNanos) }}</span>
+                <span class="sep" aria-hidden="true">·</span>
+                <span class="services">{{ group.services.join(', ') || '—' }}</span>
+                @if (group.erroredTraces > 0) {
+                  <qits-badge
+                    [label]="formatCount(group.erroredTraces) + ' errored'"
+                    tone="danger"
+                  />
+                }
+                @if (group.hasException) {
+                  <qits-badge label="exception" tone="warning" />
+                }
+              </p>
+            </div>
+
+            @if (isOpen(group.key)) {
+              <div class="members scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Root span</th>
+                      <th scope="col">Service</th>
+                      <th scope="col" class="num">Duration</th>
+                      <th scope="col" class="num">Spans</th>
+                      <th scope="col">Services</th>
+                      <th scope="col">Started</th>
+                      <th scope="col">Trace</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (trace of group.traces; track trace.traceId) {
+                      <tr [class.errored]="trace.errorSpanCount > 0">
+                        <th scope="row" class="root">
+                          <a
+                            [routerLink]="[...scoped.commands(), 'traces', trace.traceId]"
+                            [queryParams]="{ source: source() }"
+                          >
+                            {{ trace.rootName || '(unnamed span)' }}
+                          </a>
+                          @if (trace.rootMissing) {
+                            <span class="muted">(root not buffered)</span>
+                          }
+                          @if (trace.errorSpanCount > 0) {
+                            <qits-badge
+                              [label]="formatCount(trace.errorSpanCount) + ' error'"
+                              [tone]="tone(trace.errorSpanCount)"
+                            />
+                          }
+                          @if (trace.hasException) {
+                            <qits-badge label="exception" tone="warning" />
+                          }
+                        </th>
+                        <td class="mono">{{ trace.rootService || '—' }}</td>
+                        <td class="num">{{ formatDuration(trace.durationMs) }}</td>
+                        <td class="num">{{ formatCount(trace.spanCount) }}</td>
+                        <td class="services">{{ trace.services.join(', ') || '—' }}</td>
+                        <td class="stamp">{{ age(trace.startEpochNanos) }}</td>
+                        <td class="mono">
+                          <a
+                            [routerLink]="[...scoped.commands(), 'traces', trace.traceId]"
+                            [queryParams]="{ source: source() }"
+                          >
+                            {{ shortId(trace.traceId) }}
+                          </a>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </li>
+        }
+      </ol>
+    }
+
+    @if (traces().length > 0) {
       @if (truncation()) {
         <p class="note">{{ truncation() }}</p>
       }

@@ -72,6 +72,9 @@ describe('TracesPage', () => {
     traceId: 'c2712ea1a4adc35af6d31de56a75bd39',
     rootName: 'POST /ci/api/events/post-receive',
     rootService: 'qits-ci',
+    // Null by default so the group key falls back to the name and a test that never mentions
+    // grouping reads the same words it always did — collapsed header and flat row alike.
+    rootRoute: null,
     services: ['qits-ci', 'qits-artifacts'],
     startEpochNanos: START_NANOS,
     durationMs: 812,
@@ -295,6 +298,8 @@ describe('TracesPage', () => {
     flushTraces([trace({ rootMissing: true })]);
     await settle();
 
+    await click('POST /ci/api/events/post-receive');
+
     expect(text()).toContain('(root not buffered)');
   });
 
@@ -303,6 +308,8 @@ describe('TracesPage', () => {
     shell();
     flushTraces();
     await settle();
+
+    await click('POST /ci/api/events/post-receive');
 
     expect(text()).not.toContain('(root not buffered)');
   });
@@ -394,9 +401,72 @@ describe('TracesPage', () => {
     flushTraces();
     await settle();
 
+    await click('POST /ci/api/events/post-receive');
+
     const link = Array.from(page().querySelectorAll('a')).find((anchor) =>
       (anchor.getAttribute('href') ?? '').includes('/traces/c2712ea1'),
     );
     expect(link?.getAttribute('href')).toContain(`source=${ENCODED}`);
+  });
+
+  it('starts as one entry per path, holding its traces back until the entry is opened', async () => {
+    await open(`/traces?source=${ENCODED}`);
+    shell();
+    flushTraces([
+      trace({ traceId: 'aaa1', rootName: 'GET /users/1', rootRoute: '/users/{id}' }),
+      trace({ traceId: 'bbb2', rootName: 'POST /users/2', rootRoute: '/users/{id}' }),
+      trace({ traceId: 'ccc3', rootName: 'GET /health', rootRoute: '/health' }),
+    ]);
+    await settle();
+
+    // Two paths, however many traces — and the method is not part of the key.
+    expect(page().querySelectorAll('button.disclosure').length).toBe(2);
+    expect(text()).toContain('/users/{id}');
+    expect(text()).toContain('2 traces');
+    // No member row has been drawn yet, so no waterfall link exists to mislead a crawler or a tab.
+    expect(
+      Array.from(page().querySelectorAll('a')).some((anchor) =>
+        (anchor.getAttribute('href') ?? '').includes('/traces/aaa1'),
+      ),
+    ).toBe(false);
+
+    await click('/users/{id}');
+
+    expect(text()).toContain('GET /users/1');
+    expect(text()).toContain('POST /users/2');
+    expect(
+      Array.from(page().querySelectorAll('a')).some((anchor) =>
+        (anchor.getAttribute('href') ?? '').includes('/traces/aaa1'),
+      ),
+    ).toBe(true);
+  });
+
+  it('flips to the flat list through the URL without spending a request on it', async () => {
+    await open(`/traces?source=${ENCODED}`);
+    shell();
+    flushTraces([
+      trace({ traceId: 'aaa1', rootName: 'GET /users/1', rootRoute: '/users/{id}' }),
+      trace({ traceId: 'bbb2', rootName: 'POST /users/2', rootRoute: '/users/{id}' }),
+    ]);
+    await settle();
+
+    await click('Flat');
+
+    expect(TestBed.inject(Router).url).toContain('view=flat');
+    // The view lens is URL state like the others, but it is the one lens that changes nothing the
+    // service is asked — the fold was over rows already paid for, and unfolding them is free too.
+    expect(http.match(() => true)).toEqual([]);
+    expect(text()).toContain('GET /users/1');
+    expect(text()).toContain('POST /users/2');
+  });
+
+  it('says the path groups only summarise the page, when the page is not the whole answer', async () => {
+    await open(`/traces?source=${ENCODED}`);
+    shell();
+    flushTraces([trace()], { total: 1841, truncated: true });
+    await settle();
+
+    expect(text()).toContain('Showing 1 of 1,841 traces.');
+    expect(text()).toContain('The path groups summarise only these returned traces.');
   });
 });

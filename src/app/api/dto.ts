@@ -245,6 +245,12 @@ export interface TraceSummaryDto {
   readonly traceId: string;
   readonly rootName: string;
   readonly rootService: string;
+  /**
+   * The shown span's templated route (`http.route`), its concrete path (`url.path`) as fallback,
+   * or null when it carries neither — a non-HTTP root, or no root at all. Under `rootMissing` it
+   * describes the stand-in span, same as `rootName` does.
+   */
+  readonly rootRoute: string | null;
   readonly services: readonly string[];
   readonly startEpochNanos: number;
   readonly durationMs: number;
