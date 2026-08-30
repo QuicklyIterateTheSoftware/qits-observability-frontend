@@ -1,4 +1,4 @@
-# QitsSpaObservability
+# qits-observability-frontend
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
 served by qits-observability itself at the root of `observability.<env>.<domain>` through Quinoa.
@@ -294,9 +294,9 @@ npm run lint && npm test && npm run build
 
 **This repository runs no pipeline.** It has no repository on the platform git host and no
 `.config/qits/` directory, so nothing runs those three but you. A change here reaches production only
-when the `webui` gitlink in qits-observability is bumped and that repository is pushed — its own
-pipeline fetches this submodule from GitHub, rewrites the lockfile's registry origins, and builds the
-bundle into the service image.
+when the `webui` gitlink in qits-observability-service is bumped and that repository is pushed — its
+own pipeline fetches this submodule from GitHub, rewrites the lockfile's registry origins, and
+builds the bundle into the service image.
 
 ## Development server
 
