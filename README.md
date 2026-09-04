@@ -292,11 +292,12 @@ that large is rejected outright by `no-loss-of-precision`.
 npm run lint && npm test && npm run build
 ```
 
-**This repository runs no pipeline.** It has no repository on the platform git host and no
-`.config/qits/` directory, so nothing runs those three but you. A change here reaches production only
-when the `webui` gitlink in qits-observability-service is bumped and that repository is pushed — its
-own pipeline fetches this submodule from GitHub, rewrites the lockfile's registry origins, and
-builds the bundle into the service image.
+**No pipeline runs here yet.** `.config/qits/ci-event-release-request.yml` is in place — the one
+pipeline this repository has, running those same three on a release request's fold — but this
+repository has no origin on the platform git host, so qits-ci never sees it and nothing runs them
+but you. A change here reaches production when the `webui` gitlink in qits-observability-service is
+bumped and that repository's own release request goes green — its pipeline fetches this submodule
+from GitHub, rewrites the lockfile's registry origins, and builds the bundle into the service image.
 
 ## Development server
 
