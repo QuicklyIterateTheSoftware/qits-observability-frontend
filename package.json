@@ -1,6 +1,6 @@
 {
   "name": "qits-spa-observability",
-  "version": "2026.905.220848",
+  "version": "2026.906.91257",
   "private": true,
   "description": "The observability service's frontend: an Angular application that consumes @qits/ui-components from qits' own npm registry. It ships no image — qits-observability serves it at the root of its own host.",
   "license": "MIT",
