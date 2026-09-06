@@ -1,12 +1,17 @@
 import { provideBrowserGlobalErrorListeners, type ApplicationConfig } from '@angular/core';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { provideQitsNavigation, provideQitsProjects, provideQitsScope } from '@qits/ui-components';
+import {
+  provideQitsBuilds,
+  provideQitsNavigation,
+  provideQitsProjects,
+  provideQitsScope,
+} from '@qits/ui-components';
 
 import { routes } from './app.routes';
 
 /**
- * Six providers, in the order every sibling SPA lists them.
+ * Seven providers, in the order every sibling SPA lists them.
  *
  * - `provideBrowserGlobalErrorListeners` funnels genuinely-global errors and unhandled rejections
  *   into Angular's `ErrorHandler`.
@@ -28,11 +33,15 @@ import { routes } from './app.routes';
  *   `/<projectSlug>/…` — the scope is what a reader arrived in, not a filter over the telemetry.
  *   It is read from the address and nothing else, so picking a project navigates rather than
  *   remembers.
+ * - `provideQitsBuilds` puts the pending-builds bolt beside that picker: a popover of what qits-ci
+ *   is building right now, from `GET /ci/api/runs/active`. Providing it is what puts the bolt there,
+ *   exactly as no project source means no picker. Closed, it asks nothing at all; it polls only
+ *   while a reader keeps the panel open.
  *
  * Every call this app makes is a same-origin path on this service's own host, which is what lets
  * the browser's session cookie reach `/observability/api/telemetry/…` with no machine token and no
- * CORS. `/main-navigation` and `/projects/api` are path-routed on every host by the edge, so they
- * are spelled the same way from every SPA.
+ * CORS. `/main-navigation`, `/projects/api` and `/ci/api` are path-routed on every host by the edge,
+ * so they are spelled the same way from every SPA.
  */
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -42,5 +51,6 @@ export const appConfig: ApplicationConfig = {
     provideQitsNavigation(),
     provideQitsProjects(),
     provideQitsScope('project'),
+    provideQitsBuilds(),
   ],
 };
