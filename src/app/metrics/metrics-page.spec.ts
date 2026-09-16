@@ -30,7 +30,8 @@ describe('MetricsPage', () => {
   const store = (over: Partial<StoreStateDto> = {}): StoreStateDto => ({
     startedAt: new Date(Date.now() - 6 * 3600_000).toISOString(),
     totalBytes: 6995662,
-    maxTotalBytes: 67108864,
+    maxTotalBytes: 268435456,
+    maxBytesPerSource: 15728640,
     caps: { spansPerSource: 2000, logsPerSource: 10000, metricSeriesPerSource: 500 },
     sourceCount: 9,
     evictedSpans: 2204,

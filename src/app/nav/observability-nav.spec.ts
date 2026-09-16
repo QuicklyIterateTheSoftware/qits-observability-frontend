@@ -29,7 +29,8 @@ describe('ObservabilityNav', () => {
   const store = (): StoreStateDto => ({
     startedAt: new Date(Date.now() - 3600_000).toISOString(),
     totalBytes: 1024,
-    maxTotalBytes: 67108864,
+    maxTotalBytes: 268435456,
+    maxBytesPerSource: 15728640,
     caps: { spansPerSource: 2000, logsPerSource: 10000, metricSeriesPerSource: 500 },
     sourceCount: 2,
     evictedSpans: 0,

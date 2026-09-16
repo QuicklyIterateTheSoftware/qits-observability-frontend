@@ -46,6 +46,12 @@ export interface StoreCapsDto {
  * "empty" three minutes after a restart is the design working, and "empty" six hours in is a
  * service that has stopped receiving.
  *
+ * **`maxBytesPerSource` is the bound that decides what a source keeps.** Each source is given its
+ * own byte budget, and a source that fills it evicts its own oldest records regardless of what any
+ * other source is holding. `maxTotalBytes` is only a backstop on the process's own heap — sized to
+ * be nowhere near approached in ordinary operation — so a total sitting well under it says nothing
+ * about whether an individual source is at its bound.
+ *
  * The three eviction counters are cumulative since `startedAt`. They are shown whenever they are
  * non-zero, in ordinary weight — eviction is the bound doing its job, not a warning — and never
  * hidden, because they change what every other number here means.
@@ -54,6 +60,7 @@ export interface StoreStateDto {
   readonly startedAt: string;
   readonly totalBytes: number;
   readonly maxTotalBytes: number;
+  readonly maxBytesPerSource: number;
   readonly caps: StoreCapsDto;
   readonly sourceCount: number;
   readonly evictedSpans: number;

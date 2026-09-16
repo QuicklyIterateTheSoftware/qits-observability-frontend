@@ -59,7 +59,7 @@
         <dd>{{ formatCount(state.sourceCount) }}</dd>
       </div>
       <div>
-        <dt>Held</dt>
+        <dt>Held, of the process backstop</dt>
         <dd>{{ formatBytes(state.totalBytes) }} of {{ formatBytes(state.maxTotalBytes) }}</dd>
       </div>
       <div>
@@ -76,8 +76,11 @@
       </div>
     </dl>
     <p class="note">
-      The byte figures are the global ceiling. They are not what usually bites: the per-source count
-      caps fill first on this topology, so the counts above the table are the pressure to watch.
+      The total above is a backstop on the process's own heap, not a figure to watch: it is sized to
+      stay far from approached in ordinary operation. What actually bites is per source — each one
+      has its own byte budget, and a log-heavy or span-heavy source can be evicting against its own
+      bound while the total here still reads small. The eviction counters remain the honest signal
+      for whether what you are reading is everything that arrived or only what survived.
     </p>
   }
 </section>
@@ -108,7 +111,7 @@
               <th scope="col" class="num">Spans</th>
               <th scope="col" class="num">Logs</th>
               <th scope="col" class="num">Series</th>
-              <th scope="col" class="num">Held</th>
+              <th scope="col" class="num">{{ heldHeading() }}</th>
               <th scope="col">Buffered range</th>
               <th scope="col"><span class="sr">Select</span></th>
             </tr>

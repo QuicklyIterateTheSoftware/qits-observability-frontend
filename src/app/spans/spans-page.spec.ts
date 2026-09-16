@@ -36,7 +36,8 @@ describe('SpansPage', () => {
   const store = (over: Partial<StoreStateDto> = {}): StoreStateDto => ({
     startedAt: new Date(Date.now() - 6 * 3600_000).toISOString(),
     totalBytes: 18234112,
-    maxTotalBytes: 67108864,
+    maxTotalBytes: 268435456,
+    maxBytesPerSource: 15728640,
     caps: { spansPerSource: 2000, logsPerSource: 10000, metricSeriesPerSource: 500 },
     sourceCount: 1,
     evictedSpans: 0,

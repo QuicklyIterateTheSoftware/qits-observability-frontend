@@ -23,7 +23,8 @@ describe('TelemetryBuffer', () => {
   const STORE: StoreStateDto = {
     startedAt: '2026-08-01T09:24:20Z',
     totalBytes: 18234112,
-    maxTotalBytes: 67108864,
+    maxTotalBytes: 268435456,
+    maxBytesPerSource: 15728640,
     caps: { spansPerSource: 2000, logsPerSource: 10000, metricSeriesPerSource: 500 },
     sourceCount: 1,
     evictedSpans: 41233,

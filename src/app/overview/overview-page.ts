@@ -75,11 +75,12 @@ export class OverviewPage {
   });
 
   /**
-   * What the count caps are, said as one clause.
+   * What a source's caps are, said as one clause.
    *
-   * Counts and not bytes, and that ordering is a measurement rather than a preference: a full
-   * buffer of spans and logs estimates well under the byte ceiling, so the count caps bind first,
-   * every time. A pressure figure drawn from bytes would sit near the same fraction forever.
+   * Two different kinds of bound, both per source: a count on each signal, and — now the tighter
+   * one for a log-heavy or span-heavy source — a byte budget of its own. Either can bind first
+   * depending on what a source is sending; the global byte figure shown elsewhere on this page binds
+   * neither, it is only a backstop on the process's heap.
    */
   protected readonly caps = computed(() => {
     const store = this.buffer.storeValue();
@@ -88,9 +89,23 @@ export class OverviewPage {
     }
     const caps = store.caps;
     return (
-      `${formatCount(caps.spansPerSource)} spans, ${formatCount(caps.logsPerSource)} logs and ` +
-      `${formatCount(caps.metricSeriesPerSource)} metric series per source`
+      `${formatCount(caps.spansPerSource)} spans, ${formatCount(caps.logsPerSource)} logs, ` +
+      `${formatCount(caps.metricSeriesPerSource)} metric series and ` +
+      `${formatBytes(store.maxBytesPerSource)} per source`
     );
+  });
+
+  /**
+   * The Held column's heading, which names the budget each row's figure is measured against.
+   *
+   * It degrades to the bare word when the store read is not here. The sources table renders as soon
+   * as `sources` is ready and the two reads are independent (`allSettled`), so a failed store read
+   * with a good sources read is reachable — and a heading that said "of 0 B" there would be
+   * asserting a budget of nothing rather than admitting it does not know.
+   */
+  protected readonly heldHeading = computed(() => {
+    const store = this.buffer.storeValue();
+    return store === null ? 'Held' : `Held, of ${formatBytes(store.maxBytesPerSource)}`;
   });
 
   /** Whether the bounds have taken anything yet, which changes what every count below means. */
