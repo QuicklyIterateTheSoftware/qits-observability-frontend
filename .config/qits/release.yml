@@ -5,10 +5,10 @@
 # checkout, the lockfile origin rewrite, `npm ci` against the two registries, lint, test, build.
 # Thirteen of the fifteen SPA files on this platform were byte-identical to it modulo one line,
 # which is the measurement that says it is platform process rather than configuration. qits-ci now
-# compiles the wrapper's `.config/qits/release-archetypes/spa-frontend.yml` into the QA pipeline at
-# evaluation time, so a change to the release cycle is ONE commit in qits-qits rather than a sweep
-# across fifteen repositories — and what is left here is the one fact only this repository knows:
-# which recipe it runs.
+# compiles its own `.config/qits/release-archetypes/spa-frontend.yml` — shipped in qits-ci-service —
+# into the QA pipeline at evaluation time, so a change to the release cycle is ONE commit in
+# qits-ci-service rather than a sweep across fifteen repositories — and what is left here is the one
+# fact only this repository knows: which recipe it runs.
 #
 # NO `release:` SLOT AND NO `artifacts:`, which is the point rather than an omission. This
 # repository publishes nothing: qits-observability carries it as a Quinoa submodule at
