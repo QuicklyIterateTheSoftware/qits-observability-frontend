@@ -1,6 +1,7 @@
 import { provideBrowserGlobalErrorListeners, type ApplicationConfig } from '@angular/core';
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
+import { provideQitsBearerSignIn, qitsBearerInterceptor } from '@qits/angular';
 import {
   provideQitsBuilds,
   provideQitsNavigation,
@@ -11,7 +12,7 @@ import {
 import { routes } from './app.routes';
 
 /**
- * Seven providers, in the order every sibling SPA lists them.
+ * Eight providers, in the order every sibling SPA lists them.
  *
  * - `provideBrowserGlobalErrorListeners` funnels genuinely-global errors and unhandled rejections
  *   into Angular's `ErrorHandler`.
@@ -21,6 +22,9 @@ import { routes } from './app.routes';
  *   instrumentation, so choosing it would quietly forfeit client spans — and on *this* application
  *   that is not an abstract loss. This is the telemetry UI; shipping it blind to the platform's own
  *   browser instrumentation would be a joke at its own expense.
+ * - `qitsBearerInterceptor` (epic qits-543) puts `Authorization: Bearer` on every platform call.
+ *   The app has no dev-only environment file, so the sign-in always uses the deployed client id
+ *   `qits-spa`, including under `ng serve`.
  * - `provideQitsNavigation` fills the shared layout's sidebar. It issues one `GET /main-navigation`
  *   at startup and hands the answer to `QitsMainLayout`: the platform's door list is the edge's
  *   answer now, derived from the deployments it actually serves, rather than a list compiled into
@@ -37,17 +41,22 @@ import { routes } from './app.routes';
  *   is building right now, from `GET /ci/api/runs/active`. Providing it is what puts the bolt there,
  *   exactly as no project source means no picker. Closed, it asks nothing at all; it polls only
  *   while a reader keeps the panel open.
+ * - `provideQitsBearerSignIn` wires the sign-in itself (token store, refresh, `/auth/callback`,
+ *   which it prepends to the route config) and the event-source / WebSocket factories this app does
+ *   not currently need but that sibling platform pages share.
  *
- * Every call this app makes is a same-origin path on this service's own host, which is what lets
- * the browser's session cookie reach `/observability/api/telemetry/…` with no machine token and no
- * CORS. `/main-navigation`, `/projects/api` and `/ci/api` are path-routed on every host by the edge,
- * so they are spelled the same way from every SPA.
+ * Every call this app makes is a same-origin path on this service's own host, carrying the bearer
+ * `qitsBearerInterceptor` attaches rather than a session cookie the edge turns into identity
+ * headers (epic qits-543). `/main-navigation`, `/projects/api` and `/ci/api` are path-routed on
+ * every host by the edge, so they are spelled the same way from every SPA, and all three are under
+ * the platform domain the interceptor recognises.
  */
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withFetch()),
+    provideHttpClient(withFetch(), withInterceptors([qitsBearerInterceptor])),
+    provideQitsBearerSignIn({ clientId: 'qits-spa' }),
     provideQitsNavigation(),
     provideQitsProjects(),
     provideQitsScope('project'),
