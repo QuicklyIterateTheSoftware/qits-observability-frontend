@@ -2,7 +2,8 @@
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
 served by qits-observability itself at the root of `observability.<env>.<domain>` through Quinoa.
-Seven screens, no forms, and no writes at all.
+Six screens and no forms or writes at all; `/logs` is a seventh address that redirects to the
+landing app's own logs screen rather than a screen of its own (qits-2313).
 
 **Every screen is reachable twice**: at the root and under a project slug — `/qits/traces` is the
 same page as `/traces`. The literal routes are matched first, so `traces`, `spans`, `errors`, `logs`
@@ -53,27 +54,28 @@ written down here.
   spans, its logs and their stack traces inside it. With no source selected it is **+0** — and on
   this screen more than any other, because a sourceless read answers `200` with an empty list and
   "no errors" is far too reassuring a thing to say by accident.
-- **`/logs`** — the log tail, with search, a severity dropdown, a service dropdown
-  and a follow mode. **+1**
-  (`GET /telemetry/logs?source=&service=&query=&minSeverity=&sinceMinutes=&limit=`), every 5 s while
-  Follow is on and **not at all while it is off**. **The severity band is on the wire, not applied
-  to the answer**, and that is the whole reason the service grew a `minSeverity`: this endpoint
-  truncates, so a screen that filtered its own 200 records would be showing the errors _within_ a
-  page the buffer had already cut, while reading as the last 200 errors. With no source selected it
-  is **+0**.
+- **`/logs`** — no longer a screen here. The tail moved into the landing app, at
+  `/projects/<slug>/observability/logs`, and this address now exists only to carry an old bookmark
+  there: it forwards `?source=`, `?q=`, `?since=` and `?level=` — the lenses the landing screen
+  still reads — drops anything else (`?service=`, chiefly), and resolves `<slug>` from the `:project`
+  segment of the address it was given, or `qits` where there was none. **+0**: nothing here is read
+  from the buffer any more, and the redirect is a full-page navigation once the landing app's origin
+  is known.
 - **`/metrics`** — every metric series the bucket holds, grouped by name and shown at
   its latest value. **+1** (`GET /telemetry/metrics?source=&service=`), every 10 s. The **name box
   costs nothing at all**: one read holds every series a bucket has — one point per series, capped at
   500 — so it narrows what is already on the page. With no source selected it is **+0**.
 
-All seven are real screens. A `PendingPage` stood behind the unwritten ones so the route table was the
-whole route table from the first commit — addressable, carrying the selected source, and saying what
-each screen would show and cost, because an unbuilt route that renders blank chrome is
-indistinguishable from a screen that failed to load. `/metrics` was the last one behind it, so that
-component is gone with it.
+Every address above but `/logs` is a real screen. A `PendingPage` stood behind the unwritten ones so
+the route table was the whole route table from the first commit — addressable, carrying the selected
+source, and saying what each screen would show and cost, because an unbuilt route that renders blank
+chrome is indistinguishable from a screen that failed to load. `/metrics` was the last one behind it,
+so that component is gone with it. `/logs` later lost its own screen the other way: not because it
+was never built, but because the landing app grew a better one and this address became a redirect to
+it (qits-2313).
 
 **The lenses live in the URL, not in the components.** `?source=`, `?sort=`, `?threshold=`,
-`?service=`, `?severity=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
+`?service=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
 anything that costs a request is URL state — so every screen here is a link somebody can send and
 the back button means "the list I was looking at". `?name=` is the one that costs no request and is
 in the URL anyway: it narrows rows the page already holds, and a metric table somebody meant to send
@@ -152,9 +154,10 @@ not failing, and a sentence reading as a failure to load would be exactly backwa
 
 **The restart sentence has one home.** Every screen ends its empty-state ladder with "the buffer was
 emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so all five
-say it identically — a reader who meets it on the trace list and again on the log tail must not have
-to work out whether the two describe the same event. The coda is each screen's own, in its own
-nouns, because what a restart costs a trace list and what it costs a tail are different losses.
+say it identically — a reader who meets it on the trace list and again on the errors screen must not
+have to work out whether the two describe the same event. The coda is each screen's own, in its own
+nouns, because what a restart costs a trace list and what it costs an errors screen are different
+losses.
 
 **Nothing is lost quietly on the metrics screen, and what can be lost there is not eviction.** A
 metric series is never evicted — the store replaces its point in place, so its footprint is already
@@ -181,22 +184,14 @@ workspace-scoped records — which is none of the telemetry that exists today �
 would look live and never fire, which is worse than no stream at all.
 
 The band re-reads the store and the sources every 10 s. A screen re-reads its own single request on
-the same cadence, except the trace detail, which does not poll at all, and the log tail, which polls
-every 5 s while Follow is on. **All polling stops when the tab is hidden** and does one immediate
-catch-up read on return, so a backgrounded tab costs nothing. A failed poll backs off to 30 s, keeps
-the last good answer on screen and marks it stale — data you know is 40 s old beats an empty page.
+the same cadence, except the trace detail, which does not poll at all. **All polling stops when the
+tab is hidden** and does one immediate catch-up read on return, so a backgrounded tab costs nothing.
+A failed poll backs off to 30 s, keeps the last good answer on screen and marks it stale — data you
+know is 40 s old beats an empty page.
 
-**The tail is the one screen that goes faster than ten seconds, and the toggle is what buys it.**
-Follow defaults on, re-reads every 5 s, and keeps the newest record in view. It switches itself off
-the moment the reader scrolls up — scrolling away from the bottom is how a person says "hold still,
-I am reading this" — and scrolling back down does _not_ switch it on again, because coming to rest
-near the bottom is not a request to be moved; the button is how it comes back. With Follow off the
-tail makes **no timed request at all**: not slower, none. Refresh is what it offers instead.
-
-The tail draws oldest at the top and newest at the bottom, which is the order the service already
-holds them in — nothing is reversed. And a limited answer keeps the **newest** records rather than
-the first, measured against the live service: a tail that kept the oldest 200 would stop updating
-while claiming to follow, and no row on screen would give that away.
+The tail that once lived at `/logs` — with its Follow toggle re-reading every 5 s, the fastest
+cadence anything here ever polled on — moved to the landing app along with the screen (qits-2313);
+this application no longer polls anything that quickly.
 
 ## What is in `src/app/`
 
@@ -220,11 +215,13 @@ on every hop in a menu that did not itself change.
 copied from the sibling SPAs rather than shared. `@qits/ui-components` carries presentational components, not
 application types, so there is nowhere to put them yet — and this feature does not edit the shared
 library. Four modules there are this application's own rather than copies: `severity`, which turns a
-log's two severity fields into a chip, holds the six bands the log tail's dropdown offers and
-coerces the one a URL asks for; `window`, which holds the `?since=` spelling every screen that
-offers a window must agree on; `restart`, which holds the threshold and the lead sentence all six
-screens end their empty-state ladder with; and `lens-select`, the dropdown every open-ended lens is
-drawn with.
+log's two severity fields into a chip for the errors screen and the waterfall's span pane, and also
+still names the six bands and the URL coercion the logs screen's own dropdown used to draw — unused
+here since that screen moved to the landing app (qits-2313), and kept rather than deleted along with
+it, since it is a direct mirror of what the service's own `minSeverity` accepts; `window`, which
+holds the `?since=` spelling every screen that offers a window must agree on; `restart`, which holds
+the threshold and the lead sentence all five screens end their empty-state ladder with; and
+`lens-select`, the dropdown every open-ended lens is drawn with.
 
 **`lens-select` is a native `<select>` on purpose**, where the sidebar's source picker is
 `qits-picker`. The shared component renders its options open in the flow of the page whenever
