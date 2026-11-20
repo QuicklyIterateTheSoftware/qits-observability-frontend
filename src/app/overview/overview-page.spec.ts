@@ -261,17 +261,18 @@ describe('OverviewPage', () => {
   // screen left, so what is asserted now is what the placeholder was always standing in for — that
   // the selection travels in the URL and the receiving screen reads it back. `/metrics` stopped
   // being that receiving screen once it became a redirect in its own turn (qits-2340), and so did
-  // `/spans` in its own (qits-2341) — `/traces` is the one real screen left to assert against.
+  // `/spans` (qits-2341) and the trace list itself (qits-2342) — the trace detail is the one real
+  // screen left to assert against, and it reads the selection alongside an id rather than alone.
   it('carries the selected source into the screen a reader navigates to', async () => {
-    await open('/traces?source=_service%2Fqits-ci');
+    await open('/traces/trc-1?source=_service%2Fqits-ci');
     flush();
     http
       .expectOne(
         (request) =>
-          request.url === '/observability/api/telemetry/traces' &&
+          request.url === '/observability/api/telemetry/traces/trc-1' &&
           request.params.get('source') === '_service/qits-ci',
       )
-      .flush({ traces: [], total: 0, truncated: false });
+      .flush({ trace: { traceId: 'trc-1', spans: [], logs: [] } });
     await settle();
 
     expect(text()).toContain('qits-ci');

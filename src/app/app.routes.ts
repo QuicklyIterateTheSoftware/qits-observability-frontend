@@ -4,7 +4,6 @@ import { LandingRedirect, type LandingRedirectData } from './landing/landing-red
 import { NotFound } from './not-found/not-found';
 import { OverviewPage } from './overview/overview-page';
 import { TracePage } from './traces/trace-page';
-import { TracesPage } from './traces/traces-page';
 
 /**
  * Eight routes, all of them inside the platform chrome.
@@ -36,24 +35,33 @@ import { TracesPage } from './traces/traces-page';
  * rendering blank chrome. `/metrics` was the last one standing behind it, so that component is gone
  * with it.
  *
- * **`/logs`, `/errors`, `/metrics` and `/spans` later went the other way.** The log tail, the error
- * list, the metric table and the span table all moved into the landing app, at
- * `/projects/<slug>/observability/logs`, `/projects/<slug>/observability/errors`,
- * `/projects/<slug>/observability/metrics` and `/projects/<slug>/observability/slow-spans`, so all
- * four addresses are now {@link LandingRedirect}: a full-page hop to the matching screen, carrying
- * whichever query parameters that screen still reads — `?source=`, `?q=`, `?since=` and `?level=`
- * for `/logs` (qits-2313); `?source=` and `?since=` for `/errors` (qits-2339); `?source=` and
- * `?name=` for `/metrics` (qits-2340); `?source=`, `?sort=`, `?threshold=` and `?since=` for
- * `/spans` (qits-2341) — and dropping anything else. Old bookmarks to any form of this app's own
- * `/logs`, `/errors`, `/metrics` or `/spans` still work; they just do not land on a screen of this
- * application any more. An old `/spans` bookmark with no `?threshold=` meant this screen's own
- * floor of 0 — "any span" — and now lands on the landing screen's own default instead, which is the
- * endpoint's 500 ms.
+ * **`/logs`, `/errors`, `/metrics`, `/spans` and `/traces` later went the other way.** The log tail,
+ * the error list, the metric table, the span table and the trace list all moved into the landing
+ * app, at `/projects/<slug>/observability/logs`, `/projects/<slug>/observability/errors`,
+ * `/projects/<slug>/observability/metrics`, `/projects/<slug>/observability/slow-spans` and
+ * `/projects/<slug>/observability/traces`, so all five addresses are now {@link LandingRedirect}: a
+ * full-page hop to the matching screen, carrying whichever query parameters that screen still
+ * reads — `?source=`, `?q=`, `?since=` and `?level=` for `/logs` (qits-2313); `?source=` and
+ * `?since=` for `/errors` (qits-2339); `?source=` and `?name=` for `/metrics` (qits-2340);
+ * `?source=`, `?sort=`, `?threshold=` and `?since=` for `/spans` (qits-2341); `?source=`, `?sort=`,
+ * `?threshold=`, `?service=` and `?view=` for `/traces` (qits-2342) — and dropping anything else.
+ * Old bookmarks to any form of this app's own `/logs`, `/errors`, `/metrics`, `/spans` or `/traces`
+ * still work; they just do not land on a screen of this application any more. An old `/spans`
+ * bookmark with no `?threshold=` meant this screen's own floor of 0 — "any span" — and now lands on
+ * the landing screen's own default instead, which is the endpoint's 500 ms.
  */
 
 const OWN: Routes = [
   { path: '', component: OverviewPage },
-  { path: 'traces', component: TracesPage },
+  {
+    path: 'traces',
+    component: LandingRedirect,
+    data: {
+      path: 'traces',
+      params: ['source', 'sort', 'threshold', 'service', 'view'],
+      label: 'traces',
+    } satisfies LandingRedirectData,
+  },
   { path: 'traces/:traceId', component: TracePage },
   {
     path: 'spans',
@@ -98,13 +106,13 @@ const OWN: Routes = [
  *
  * **Order is the whole guard.** The literal routes above are matched first, so `traces`, `spans`,
  * `errors`, `logs` and `metrics` stay this app's own screens and never read as projects of those
- * names; only what none of them claim falls through to `:project`. Every screen but four never
+ * names; only what none of them claim falls through to `:project`. Every screen but five never
  * reads this parameter: it asks `QITS_SCOPE`, which parses the address the same way in both forms,
- * so one component serves both. `/logs`, `/errors`, `/metrics` and `/spans` are the exception —
- * {@link LandingRedirect} reads `:project` straight off this route rather than through `QITS_SCOPE`,
- * because it has no reason to wait on the project list that token's parsing needs: it is leaving
- * this application either way, so it falls back to `qits` rather than to the unscoped answer
- * `QITS_SCOPE` would give while that list is still loading.
+ * so one component serves both. `/logs`, `/errors`, `/metrics`, `/spans` and `/traces` are the
+ * exception — {@link LandingRedirect} reads `:project` straight off this route rather than through
+ * `QITS_SCOPE`, because it has no reason to wait on the project list that token's parsing needs: it
+ * is leaving this application either way, so it falls back to `qits` rather than to the unscoped
+ * answer `QITS_SCOPE` would give while that list is still loading.
  *
  * This app is project scoped and not repository scoped: the buffer carries no project and no
  * repository row, so a scope here says where the reader came from rather than what is drawn.

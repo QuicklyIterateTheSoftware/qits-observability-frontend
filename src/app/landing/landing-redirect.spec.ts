@@ -7,8 +7,8 @@ import { LandingRedirect, type LandingRedirectData } from './landing-redirect';
 
 /**
  * Where an old bookmark to one of this app's own addresses lands, now that the screen itself lives
- * in the landing app — `/logs`, `/errors`, `/metrics` and `/spans` alike, told apart only by the
- * `data` the matching route in `app.routes.ts` carries.
+ * in the landing app — `/logs`, `/errors`, `/metrics`, `/spans` and `/traces` alike, told apart only
+ * by the `data` the matching route in `app.routes.ts` carries.
  *
  * **No router here, on purpose.** The component reads its one route parameter off
  * `ActivatedRoute.snapshot.parent`, which is a plain object this suite can shape directly — mounting
@@ -55,6 +55,12 @@ const SPANS_DATA: LandingRedirectData = {
   path: 'slow-spans',
   params: ['source', 'sort', 'threshold', 'since'],
   label: 'slow spans',
+};
+
+const TRACES_DATA: LandingRedirectData = {
+  path: 'traces',
+  params: ['source', 'sort', 'threshold', 'service', 'view'],
+  label: 'traces',
 };
 
 describe('LandingRedirect', () => {
@@ -261,6 +267,49 @@ describe('LandingRedirect', () => {
       expect(replace).toHaveBeenCalledWith(
         'https://qits.example.test/projects/qits/observability/slow-spans' +
           '?source=_service%2Fqits-ci&sort=slowest&threshold=250&since=60',
+      );
+    });
+  });
+
+  describe('/traces', () => {
+    it('redirects to the landing app’s trace list, forwarding only the lenses it still reads', () => {
+      mount({
+        data: TRACES_DATA,
+        query: {
+          source: '_service/qits-ci',
+          sort: 'duration',
+          threshold: '250',
+          service: 'qits-ci',
+          view: 'flat',
+          since: '60',
+        },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledOnce();
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/observability/traces' +
+          '?source=_service%2Fqits-ci&sort=duration&threshold=250&service=qits-ci&view=flat',
+      );
+    });
+
+    it('keeps the project named in the address', () => {
+      mount({
+        data: TRACES_DATA,
+        project: 'qits',
+        query: {
+          source: '_service/qits-ci',
+          sort: 'duration',
+          threshold: '250',
+          service: 'qits-ci',
+          view: 'flat',
+        },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/observability/traces' +
+          '?source=_service%2Fqits-ci&sort=duration&threshold=250&service=qits-ci&view=flat',
       );
     });
   });
