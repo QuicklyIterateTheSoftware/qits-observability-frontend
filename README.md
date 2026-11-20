@@ -234,16 +234,14 @@ carried a `left` and a `width` in percent, computed from the trace's own start a
 SPA on this platform has a chart library, and the one place a chart was ever considered, it was
 refused in writing.
 
-The layout itself was a pure function, `layOutTrace` in `traces/trace-layout.ts`, kept as a function
-rather than inlined so the three shapes a bounded buffer forces could be asserted directly rather
-than through the DOM — each of them drew something plausible and wrong if handled carelessly: a
-span whose parent is not buffered, drawn at the top level rather than re-parented; a trace with no
-root at all, flagged as `rootMissing` rather than promoting the earliest survivor into a root it
-never was; and `durationMs` as integer milliseconds, so a sub-millisecond span floored to a
-`0%`-width bar in CSS labelled `<1 ms` rather than vanishing. `layOutTrace`, `EMPTY_WATERFALL` and
-`WaterfallRow` have no caller left in this repository now that the screen that was their only one is
-gone, but `traces/trace-layout.ts` itself stays, because the trace list's own duration column still
-reads `formatDuration` from the same module.
+`traces/trace-layout.ts` moved along with the waterfall and the trace list alike, to the landing
+app (qits-2342, qits-2343); `layOutTrace`, `EMPTY_WATERFALL`, `WaterfallRow` and `formatDuration`
+are no longer part of this repository. The function existed to assert, directly rather than
+through the DOM, the three shapes a bounded buffer forces — each of them drew something plausible
+and wrong if handled carelessly: a span whose parent is not buffered, drawn at the top level rather
+than re-parented; a trace with no root at all, flagged as `rootMissing` rather than promoting the
+earliest survivor into a root it never was; and `durationMs` as integer milliseconds, so a
+sub-millisecond span floored to a `0%`-width bar in CSS labelled `<1 ms` rather than vanishing.
 
 `metric-series.ts` moved along with the metrics screen itself, to the landing app (qits-2340); the
 metric-grouping, series-counting and unit-gloss logic it held is no longer part of this repository.
