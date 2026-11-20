@@ -2,9 +2,9 @@
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
 served by qits-observability itself at the root of `observability.<env>.<domain>` through Quinoa.
-Four screens and no forms or writes at all; `/logs`, `/errors` and `/metrics` are three further
-addresses that redirect to the landing app's own screens rather than screens of their own
-(qits-2313, qits-2339, qits-2340).
+Three screens and no forms or writes at all; `/logs`, `/errors`, `/metrics` and `/spans` are four
+further addresses that redirect to the landing app's own screens rather than screens of their own
+(qits-2313, qits-2339, qits-2340, qits-2341).
 
 **Every screen is reachable twice**: at the root and under a project slug — `/qits/traces` is the
 same page as `/traces`. The literal routes are matched first, so `traces`, `spans`, `errors`, `logs`
@@ -41,14 +41,14 @@ written down here.
   logs. **+1** (`GET /telemetry/traces/{traceId}?source=`). It does not poll: a trace is a finished
   thing, and a manual refresh covers late spans. The spans and their correlated logs arrive in the
   same answer, so the log rail costs nothing on top, and selecting a span costs nothing either.
-- **`/spans`** — every buffered span of the bucket as rows, narrowed by four
-  dropdowns: service, duration floor, order and window. **+1**
-  (`GET /telemetry/slow-spans?source=&service=&thresholdMs=&sinceMinutes=&sort=&limit=`), every
-  10 s. **The floor defaults to 0, not to the endpoint's own 500**: the filter is `>=`, so zero
-  turns `slow-spans` from "what is slow" into "what happened", which is the question this screen
-  exists for. The trace list groups spans and the waterfall draws one trace's; until this screen
-  existed, seeing a span meant already knowing which trace it was in, and the endpoint had no reader
-  at all. With no source selected it is **+0**.
+- **`/spans`** — no longer a screen here. The span table moved into the landing app, at
+  `/projects/<slug>/observability/slow-spans`, and this address now exists only to carry an old
+  bookmark there: it forwards `?source=`, `?sort=`, `?threshold=` and `?since=` — the lenses the
+  landing screen still reads — drops anything else (`?service=`, chiefly), and resolves `<slug>`
+  the same way. **+0**: nothing here is read from the buffer any more, and the redirect is a
+  full-page navigation once the landing app's origin is known (qits-2341). An old bookmark with no
+  `?threshold=` meant this screen's own floor of 0 — "any span", not just a slow one — and now lands
+  on the landing screen's own default instead, which is the endpoint's `500`.
 - **`/errors`** — no longer a screen here. The error list moved into the landing app, at
   `/projects/<slug>/observability/errors`, and this address now exists only to carry an old bookmark
   there: it forwards `?source=` and `?since=` — the lenses the landing screen still reads — drops
@@ -69,14 +69,14 @@ written down here.
   here is read from the buffer any more, and the redirect is a full-page navigation once the landing
   app's origin is known (qits-2340).
 
-Every address above but `/logs`, `/errors` and `/metrics` is a real screen. A `PendingPage` stood
-behind the unwritten ones so the route table was the whole route table from the first commit —
-addressable, carrying the selected source, and saying what each screen would show and cost, because
-an unbuilt route that renders blank chrome is indistinguishable from a screen that failed to load.
-`/metrics` was the last one behind it, so that component is gone with it. `/logs`, `/errors` and
-`/metrics` later lost their own screens the other way: not because they were never built, but
-because the landing app grew better ones and these addresses became redirects to them (qits-2313,
-qits-2339, qits-2340).
+Every address above but `/logs`, `/errors`, `/metrics` and `/spans` is a real screen. A
+`PendingPage` stood behind the unwritten ones so the route table was the whole route table from the
+first commit — addressable, carrying the selected source, and saying what each screen would show
+and cost, because an unbuilt route that renders blank chrome is indistinguishable from a screen
+that failed to load. `/metrics` was the last one behind it, so that component is gone with it.
+`/logs`, `/errors`, `/metrics` and `/spans` later lost their own screens the other way: not because
+they were never built, but because the landing app grew better ones and these addresses became
+redirects to them (qits-2313, qits-2339, qits-2340, qits-2341).
 
 **The lenses live in the URL, not in the components.** `?source=`, `?sort=`, `?threshold=`,
 `?service=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
@@ -146,11 +146,11 @@ somebody's instrumentation, while a record with no resource is the same non-fact
 record that exporter ever sent.
 
 **The restart sentence has one home.** Every screen ends its empty-state ladder with "the buffer was
-emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so all three
-say it identically — a reader who meets it on the trace list and again on the spans screen must not
-have to work out whether the two describe the same event. The coda is each screen's own, in its own
-nouns, because what a restart costs a trace list and what it costs a spans screen are different
-losses.
+emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so both
+remaining screens say it identically — a reader who meets it on the overview and again on the trace
+list must not have to work out whether the two describe the same event. The coda is each screen's
+own, in its own nouns, because what a restart costs the overview and what it costs a trace list are
+different losses.
 
 **The workspace lens says what it is waiting for.** The other lens on this service is keyed on a
 repository and a workspace, it is real, and it has never had a subject: no workspace dev server
@@ -204,7 +204,7 @@ names the six bands and the URL coercion the logs screen's own dropdown used to 
 since that screen moved there too (qits-2313) and kept rather than deleted, since it is a direct
 mirror of what the service's own `minSeverity` accepts; `window`, which holds the `?since=` spelling
 every screen that offers a window must agree on; `restart`, which holds the threshold and the lead
-sentence all three remaining screens end their empty-state ladder with; and `lens-select`, the
+sentence both remaining screens end their empty-state ladder with; and `lens-select`, the
 dropdown every open-ended lens is drawn with.
 
 **`lens-select` is a native `<select>` on purpose**, where the sidebar's source picker is

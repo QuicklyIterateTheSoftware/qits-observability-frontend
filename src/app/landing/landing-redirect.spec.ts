@@ -7,8 +7,8 @@ import { LandingRedirect, type LandingRedirectData } from './landing-redirect';
 
 /**
  * Where an old bookmark to one of this app's own addresses lands, now that the screen itself lives
- * in the landing app — `/logs`, `/errors` and `/metrics` alike, told apart only by the `data` the
- * matching route in `app.routes.ts` carries.
+ * in the landing app — `/logs`, `/errors`, `/metrics` and `/spans` alike, told apart only by the
+ * `data` the matching route in `app.routes.ts` carries.
  *
  * **No router here, on purpose.** The component reads its one route parameter off
  * `ActivatedRoute.snapshot.parent`, which is a plain object this suite can shape directly — mounting
@@ -49,6 +49,12 @@ const METRICS_DATA: LandingRedirectData = {
   path: 'metrics',
   params: ['source', 'name'],
   label: 'metrics',
+};
+
+const SPANS_DATA: LandingRedirectData = {
+  path: 'slow-spans',
+  params: ['source', 'sort', 'threshold', 'since'],
+  label: 'slow spans',
 };
 
 describe('LandingRedirect', () => {
@@ -219,6 +225,42 @@ describe('LandingRedirect', () => {
       expect(replace).toHaveBeenCalledWith(
         'https://qits.example.test/projects/qits/observability/metrics' +
           '?source=_service%2Fqits-ci&name=jvm.memory.used',
+      );
+    });
+  });
+
+  describe('/spans', () => {
+    it('redirects to the landing app’s slow spans screen, forwarding only the lenses it still reads', () => {
+      mount({
+        data: SPANS_DATA,
+        query: {
+          source: '_service/qits-ci',
+          sort: 'slowest',
+          threshold: '250',
+          since: '60',
+          service: 'x',
+        },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledOnce();
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/observability/slow-spans' +
+          '?source=_service%2Fqits-ci&sort=slowest&threshold=250&since=60',
+      );
+    });
+
+    it('keeps the project named in the address', () => {
+      mount({
+        data: SPANS_DATA,
+        project: 'qits',
+        query: { source: '_service/qits-ci', sort: 'slowest', threshold: '250', since: '60' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/observability/slow-spans' +
+          '?source=_service%2Fqits-ci&sort=slowest&threshold=250&since=60',
       );
     });
   });
