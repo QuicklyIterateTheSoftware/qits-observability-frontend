@@ -2,8 +2,8 @@
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
 served by qits-observability itself at the root of `observability.<env>.<domain>` through Quinoa.
-Six screens and no forms or writes at all; `/logs` is a seventh address that redirects to the
-landing app's own logs screen rather than a screen of its own (qits-2313).
+Five screens and no forms or writes at all; `/logs` and `/errors` are two further addresses that
+redirect to the landing app's own screens rather than screens of their own (qits-2313, qits-2339).
 
 **Every screen is reachable twice**: at the root and under a project slug — `/qits/traces` is the
 same page as `/traces`. The literal routes are matched first, so `traces`, `spans`, `errors`, `logs`
@@ -48,31 +48,31 @@ written down here.
   exists for. The trace list groups spans and the waterfall draws one trace's; until this screen
   existed, seeing a span meant already knowing which trace it was in, and the endpoint had no reader
   at all. With no source selected it is **+0**.
-- **`/errors`** — one card per trace, its error spans and its ERROR logs together.
-  **+1** (`GET /telemetry/errors?source=&service=&sinceMinutes=&limit=`), every 10 s. It stays one
-  request however you narrow it, and **expanding a card costs nothing**: a group arrives with its
-  spans, its logs and their stack traces inside it. With no source selected it is **+0** — and on
-  this screen more than any other, because a sourceless read answers `200` with an empty list and
-  "no errors" is far too reassuring a thing to say by accident.
-- **`/logs`** — no longer a screen here. The tail moved into the landing app, at
+- **`/errors`** — no longer a screen here. The error list moved into the landing app, at
+  `/projects/<slug>/observability/errors`, and this address now exists only to carry an old bookmark
+  there: it forwards `?source=` and `?since=` — the lenses the landing screen still reads — drops
+  anything else (`?service=`, chiefly), and resolves `<slug>` from the `:project` segment of the
+  address it was given, or `qits` where there was none. **+0**: nothing here is read from the buffer
+  any more, and the redirect is a full-page navigation once the landing app's origin is known
+  (qits-2339).
+- **`/logs`** — no longer a screen here either. The tail moved into the landing app, at
   `/projects/<slug>/observability/logs`, and this address now exists only to carry an old bookmark
   there: it forwards `?source=`, `?q=`, `?since=` and `?level=` — the lenses the landing screen
-  still reads — drops anything else (`?service=`, chiefly), and resolves `<slug>` from the `:project`
-  segment of the address it was given, or `qits` where there was none. **+0**: nothing here is read
-  from the buffer any more, and the redirect is a full-page navigation once the landing app's origin
-  is known.
+  still reads — drops anything else (`?service=`, chiefly), and resolves `<slug>` the same way.
+  **+0**: nothing here is read from the buffer any more, and the redirect is a full-page navigation
+  once the landing app's origin is known (qits-2313).
 - **`/metrics`** — every metric series the bucket holds, grouped by name and shown at
   its latest value. **+1** (`GET /telemetry/metrics?source=&service=`), every 10 s. The **name box
   costs nothing at all**: one read holds every series a bucket has — one point per series, capped at
   500 — so it narrows what is already on the page. With no source selected it is **+0**.
 
-Every address above but `/logs` is a real screen. A `PendingPage` stood behind the unwritten ones so
-the route table was the whole route table from the first commit — addressable, carrying the selected
-source, and saying what each screen would show and cost, because an unbuilt route that renders blank
-chrome is indistinguishable from a screen that failed to load. `/metrics` was the last one behind it,
-so that component is gone with it. `/logs` later lost its own screen the other way: not because it
-was never built, but because the landing app grew a better one and this address became a redirect to
-it (qits-2313).
+Every address above but `/logs` and `/errors` is a real screen. A `PendingPage` stood behind the
+unwritten ones so the route table was the whole route table from the first commit — addressable,
+carrying the selected source, and saying what each screen would show and cost, because an unbuilt
+route that renders blank chrome is indistinguishable from a screen that failed to load. `/metrics`
+was the last one behind it, so that component is gone with it. `/logs` and `/errors` later lost
+their own screens the other way: not because they were never built, but because the landing app grew
+better ones and these addresses became redirects to them (qits-2313, qits-2339).
 
 **The lenses live in the URL, not in the components.** `?source=`, `?sort=`, `?threshold=`,
 `?service=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
@@ -131,32 +131,21 @@ process's resource attributes beside its own — `service.name`, `service.versio
 `deployment.environment.name` and `service.instance.id` — and the version is the deploy's sha or its
 calver. A platform that ships several times a day into a buffer that holds hours holds records from
 more than one build, and they are otherwise identical on screen. So the waterfall's span pane draws
-the whole map beside the span's own attributes, build first, and every piece of evidence on the
-errors screen carries its build beside the service that sent it — per record rather than per card,
-because a rolling replace puts two builds of one service in one buffer and "only the old one is
-still throwing" is exactly what a reader came for. The tail draws none of it: a build repeated down
-two hundred one-line rows is noise, and those rows link to the waterfall where it is read.
+the whole map beside the span's own attributes, build first — because a rolling replace puts two
+builds of one service in one buffer and knowing which one is current is exactly what a reader came
+for. The errors screen once carried the same map per piece of evidence; that behaviour moved with it
+to the landing app (qits-2339).
 
 **Where an exporter stamped no resource, nothing is drawn.** It is the one absence in this app that
 gets no sentence, and the distinction is the point: a span with no attributes is a fact about
 somebody's instrumentation, while a record with no resource is the same non-fact repeated on every
 record that exporter ever sent.
 
-**A group with no trace is not a trace.** Evidence qits-observability could not correlate groups
-under an _empty_ trace id — an ERROR log written outside an active span is the ordinary case — and
-that card sits at the bottom of the errors list, says what it is, and links nowhere. It also
-arrives with no spans at all, which is why the card's headline comes from whichever evidence exists
-rather than from the first span.
-
-**An empty errors screen is good news, and it is written that way.** Everywhere else here an empty
-answer is a fact about the buffer; on that one screen it is usually a fact about a platform that is
-not failing, and a sentence reading as a failure to load would be exactly backwards.
-
 **The restart sentence has one home.** Every screen ends its empty-state ladder with "the buffer was
-emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so all five
-say it identically — a reader who meets it on the trace list and again on the errors screen must not
+emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so all four
+say it identically — a reader who meets it on the trace list and again on the spans screen must not
 have to work out whether the two describe the same event. The coda is each screen's own, in its own
-nouns, because what a restart costs a trace list and what it costs an errors screen are different
+nouns, because what a restart costs a trace list and what it costs a spans screen are different
 losses.
 
 **Nothing is lost quietly on the metrics screen, and what can be lost there is not eviction.** A
@@ -215,13 +204,14 @@ on every hop in a menu that did not itself change.
 copied from the sibling SPAs rather than shared. `@qits/ui-components` carries presentational components, not
 application types, so there is nowhere to put them yet — and this feature does not edit the shared
 library. Four modules there are this application's own rather than copies: `severity`, which turns a
-log's two severity fields into a chip for the errors screen and the waterfall's span pane, and also
-still names the six bands and the URL coercion the logs screen's own dropdown used to draw — unused
-here since that screen moved to the landing app (qits-2313), and kept rather than deleted along with
-it, since it is a direct mirror of what the service's own `minSeverity` accepts; `window`, which
-holds the `?since=` spelling every screen that offers a window must agree on; `restart`, which holds
-the threshold and the lead sentence all five screens end their empty-state ladder with; and
-`lens-select`, the dropdown every open-ended lens is drawn with.
+log's two severity fields into a chip — drawn here only by the waterfall's span pane now that the
+errors screen that once drew the same chip has moved to the landing app (qits-2339) — and also still
+names the six bands and the URL coercion the logs screen's own dropdown used to draw, unused here
+since that screen moved there too (qits-2313) and kept rather than deleted, since it is a direct
+mirror of what the service's own `minSeverity` accepts; `window`, which holds the `?since=` spelling
+every screen that offers a window must agree on; `restart`, which holds the threshold and the lead
+sentence all four remaining screens end their empty-state ladder with; and `lens-select`, the
+dropdown every open-ended lens is drawn with.
 
 **`lens-select` is a native `<select>` on purpose**, where the sidebar's source picker is
 `qits-picker`. The shared component renders its options open in the flow of the page whenever
@@ -268,13 +258,8 @@ that reorders itself under a ten-second poll because the response arrives in the
 order. The UCUM unit stays on screen exactly as the exporter declared it — `{thread}`, `By`, `1` —
 with a gloss beside it rather than a translation over it.
 
-`errors/error-group.ts` is the same idea one screen along: a group's headline, its counts and its
-date are a pure function over the group, because each of them draws something plausible and wrong if
-it is handled carelessly. A headline reached for from `errorSpans[0]` is blank on exactly the group
-most in need of a sentence — the uncorrelated one has no spans. A group dated by its evidence's
-_start_ files a slow failure by when it began rather than by when it failed, which puts the wrong
-row in the wrong place on a list read by recency. And an exception is an exception because the
-service said so on the event, not because the event happens to be named one.
+`error-group.ts` moved along with the errors screen itself, to the landing app (qits-2339); the
+group-headline logic it held is no longer part of this repository.
 
 One measurement worth writing down: a nanosecond epoch is a 61-bit figure and JSON hands it to a
 double, so its low bits are gone before this code sees it — 42 ms of nanos measures back as
