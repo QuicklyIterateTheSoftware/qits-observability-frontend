@@ -2,8 +2,9 @@
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
 served by qits-observability itself at the root of `observability.<env>.<domain>` through Quinoa.
-Five screens and no forms or writes at all; `/logs` and `/errors` are two further addresses that
-redirect to the landing app's own screens rather than screens of their own (qits-2313, qits-2339).
+Four screens and no forms or writes at all; `/logs`, `/errors` and `/metrics` are three further
+addresses that redirect to the landing app's own screens rather than screens of their own
+(qits-2313, qits-2339, qits-2340).
 
 **Every screen is reachable twice**: at the root and under a project slug — `/qits/traces` is the
 same page as `/traces`. The literal routes are matched first, so `traces`, `spans`, `errors`, `logs`
@@ -61,18 +62,21 @@ written down here.
   still reads — drops anything else (`?service=`, chiefly), and resolves `<slug>` the same way.
   **+0**: nothing here is read from the buffer any more, and the redirect is a full-page navigation
   once the landing app's origin is known (qits-2313).
-- **`/metrics`** — every metric series the bucket holds, grouped by name and shown at
-  its latest value. **+1** (`GET /telemetry/metrics?source=&service=`), every 10 s. The **name box
-  costs nothing at all**: one read holds every series a bucket has — one point per series, capped at
-  500 — so it narrows what is already on the page. With no source selected it is **+0**.
+- **`/metrics`** — no longer a screen here. The metric table moved into the landing app, at
+  `/projects/<slug>/observability/metrics`, and this address now exists only to carry an old
+  bookmark there: it forwards `?source=` and `?name=` — the lenses the landing screen still reads —
+  drops anything else (`?service=`, chiefly), and resolves `<slug>` the same way. **+0**: nothing
+  here is read from the buffer any more, and the redirect is a full-page navigation once the landing
+  app's origin is known (qits-2340).
 
-Every address above but `/logs` and `/errors` is a real screen. A `PendingPage` stood behind the
-unwritten ones so the route table was the whole route table from the first commit — addressable,
-carrying the selected source, and saying what each screen would show and cost, because an unbuilt
-route that renders blank chrome is indistinguishable from a screen that failed to load. `/metrics`
-was the last one behind it, so that component is gone with it. `/logs` and `/errors` later lost
-their own screens the other way: not because they were never built, but because the landing app grew
-better ones and these addresses became redirects to them (qits-2313, qits-2339).
+Every address above but `/logs`, `/errors` and `/metrics` is a real screen. A `PendingPage` stood
+behind the unwritten ones so the route table was the whole route table from the first commit —
+addressable, carrying the selected source, and saying what each screen would show and cost, because
+an unbuilt route that renders blank chrome is indistinguishable from a screen that failed to load.
+`/metrics` was the last one behind it, so that component is gone with it. `/logs`, `/errors` and
+`/metrics` later lost their own screens the other way: not because they were never built, but
+because the landing app grew better ones and these addresses became redirects to them (qits-2313,
+qits-2339, qits-2340).
 
 **The lenses live in the URL, not in the components.** `?source=`, `?sort=`, `?threshold=`,
 `?service=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
@@ -142,21 +146,11 @@ somebody's instrumentation, while a record with no resource is the same non-fact
 record that exporter ever sent.
 
 **The restart sentence has one home.** Every screen ends its empty-state ladder with "the buffer was
-emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so all four
+emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so all three
 say it identically — a reader who meets it on the trace list and again on the spans screen must not
 have to work out whether the two describe the same event. The coda is each screen's own, in its own
 nouns, because what a restart costs a trace list and what it costs a spans screen are different
 losses.
-
-**Nothing is lost quietly on the metrics screen, and what can be lost there is not eviction.** A
-metric series is never evicted — the store replaces its point in place, so its footprint is already
-bounded — but a **new** series is refused once a bucket is at its cap, which is invisible in a table
-whose every row is correct and current. So `droppedMetricSeries` is stated whenever it is non-zero,
-and again whenever the bucket is sitting at the cap. And a series is keyed by its name and its
-attributes with the **reporting service left out of the identity**: two services exporting one metric
-with one attribute set into a shared bucket occupy a single row, showing whichever reported last. No
-bucket on this platform holds two services today, so that sentence usually does not draw — but when
-it does, the collision is otherwise silent and the row looks fine.
 
 **The workspace lens says what it is waiting for.** The other lens on this service is keyed on a
 repository and a workspace, it is real, and it has never had a subject: no workspace dev server
@@ -210,7 +204,7 @@ names the six bands and the URL coercion the logs screen's own dropdown used to 
 since that screen moved there too (qits-2313) and kept rather than deleted, since it is a direct
 mirror of what the service's own `minSeverity` accepts; `window`, which holds the `?since=` spelling
 every screen that offers a window must agree on; `restart`, which holds the threshold and the lead
-sentence all four remaining screens end their empty-state ladder with; and `lens-select`, the
+sentence all three remaining screens end their empty-state ladder with; and `lens-select`, the
 dropdown every open-ended lens is drawn with.
 
 **`lens-select` is a native `<select>` on purpose**, where the sidebar's source picker is
@@ -223,19 +217,11 @@ offer — a link carrying a `?service=` that has stopped reporting — is said o
 dropped, since the filter is still shaping an answer that would otherwise look like an empty
 bucket.
 
-**There is no `?since=` on the metrics screen, and that is the endpoint rather than an omission.**
-`/telemetry/metrics` takes no window, because a latest value has none to be inside. Nor is the
-endpoint's own `?name=` used: measured live, it is an exact, case-sensitive match — `name=memory`
-answered zero against a bucket holding five `jvm.memory.used` series — so a box wired to it would
-require its reader to already know the answer. The box filters in the browser instead, over a read
-that already holds everything.
-
 **There is no charting dependency, and there will not be one.** The waterfall is a nested list where
 each row carries a `left` and a `width` in percent, computed from the trace's own start and span:
-`parentSpanId` + `startEpochNanos` + `durationMs` is exactly that, and nothing here is a curve. The
-metrics screen is a table because the store keeps one point per series and replaces it in place —
-there is no series to draw. No SPA on this platform has a chart library, and the one place a chart
-was ever considered, it was refused in writing.
+`parentSpanId` + `startEpochNanos` + `durationMs` is exactly that, and nothing here is a curve. No
+SPA on this platform has a chart library, and the one place a chart was ever considered, it was
+refused in writing.
 
 The layout itself is a pure function in `traces/trace-layout.ts`, and it is a function so that the
 three shapes a bounded buffer forces can be asserted directly rather than through the DOM — each of
@@ -251,12 +237,8 @@ them draws something plausible and wrong if it is handled carelessly:
   honest `0%` and the bar is floored in CSS, so the geometry remains a true proportion while the row
   stays visible. Its label reads `<1 ms`, which is exactly what the service's `0` means.
 
-`metrics/metric-series.ts` is the same idea again, and its cases are all numbers a reader would
-believe: a byte figure drawn as `168,296,448` rather than `161 MiB`, a cumulative counter given two
-decimal places it never claimed, an idle CPU ratio flattened from `0.002` to `0.00`, and a table
-that reorders itself under a ten-second poll because the response arrives in the store's insertion
-order. The UCUM unit stays on screen exactly as the exporter declared it — `{thread}`, `By`, `1` —
-with a gloss beside it rather than a translation over it.
+`metric-series.ts` moved along with the metrics screen itself, to the landing app (qits-2340); the
+metric-grouping, series-counting and unit-gloss logic it held is no longer part of this repository.
 
 `error-group.ts` moved along with the errors screen itself, to the landing app (qits-2339); the
 group-headline logic it held is no longer part of this repository.

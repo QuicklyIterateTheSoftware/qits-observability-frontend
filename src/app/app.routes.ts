@@ -1,7 +1,6 @@
 import type { Route, Routes } from '@angular/router';
 import { QitsMainLayout } from '@qits/ui-components';
 import { LandingRedirect, type LandingRedirectData } from './landing/landing-redirect';
-import { MetricsPage } from './metrics/metrics-page';
 import { NotFound } from './not-found/not-found';
 import { OverviewPage } from './overview/overview-page';
 import { SpansPage } from './spans/spans-page';
@@ -43,13 +42,15 @@ import { TracesPage } from './traces/traces-page';
  * rendering blank chrome. `/metrics` was the last one standing behind it, so that component is gone
  * with it.
  *
- * **`/logs` and `/errors` later went the other way.** The log tail and the error list both moved
- * into the landing app, at `/projects/<slug>/observability/logs` and `/projects/<slug>/observability/errors`,
- * so both addresses are now {@link LandingRedirect}: a full-page hop to the matching screen,
- * carrying whichever query parameters that screen still reads — `?source=`, `?q=`, `?since=` and
- * `?level=` for `/logs` (qits-2313); `?source=` and `?since=` for `/errors` (qits-2339) — and
- * dropping anything else. Old bookmarks to either form of this app's own `/logs` or `/errors` still
- * work; they just do not land on a screen of this application any more.
+ * **`/logs`, `/errors` and `/metrics` later went the other way.** The log tail, the error list and
+ * the metric table all moved into the landing app, at `/projects/<slug>/observability/logs`,
+ * `/projects/<slug>/observability/errors` and `/projects/<slug>/observability/metrics`, so all three
+ * addresses are now {@link LandingRedirect}: a full-page hop to the matching screen, carrying
+ * whichever query parameters that screen still reads — `?source=`, `?q=`, `?since=` and `?level=`
+ * for `/logs` (qits-2313); `?source=` and `?since=` for `/errors` (qits-2339); `?source=` and
+ * `?name=` for `/metrics` (qits-2340) — and dropping anything else. Old bookmarks to any form of
+ * this app's own `/logs`, `/errors` or `/metrics` still work; they just do not land on a screen of
+ * this application any more.
  */
 
 const OWN: Routes = [
@@ -75,7 +76,15 @@ const OWN: Routes = [
       label: 'logs',
     } satisfies LandingRedirectData,
   },
-  { path: 'metrics', component: MetricsPage },
+  {
+    path: 'metrics',
+    component: LandingRedirect,
+    data: {
+      path: 'metrics',
+      params: ['source', 'name'],
+      label: 'metrics',
+    } satisfies LandingRedirectData,
+  },
 ];
 
 /**
@@ -83,13 +92,13 @@ const OWN: Routes = [
  *
  * **Order is the whole guard.** The literal routes above are matched first, so `traces`, `spans`,
  * `errors`, `logs` and `metrics` stay this app's own screens and never read as projects of those
- * names; only what none of them claim falls through to `:project`. Every screen but two never reads
- * this parameter: it asks `QITS_SCOPE`, which parses the address the same way in both forms, so one
- * component serves both. `/logs` and `/errors` are the exception — {@link LandingRedirect} reads
- * `:project` straight off this route rather than through `QITS_SCOPE`, because it has no reason to
- * wait on the project list that token's parsing needs: it is leaving this application either way, so
- * it falls back to `qits` rather than to the unscoped answer `QITS_SCOPE` would give while that list
- * is still loading.
+ * names; only what none of them claim falls through to `:project`. Every screen but three never
+ * reads this parameter: it asks `QITS_SCOPE`, which parses the address the same way in both forms,
+ * so one component serves both. `/logs`, `/errors` and `/metrics` are the exception — {@link
+ * LandingRedirect} reads `:project` straight off this route rather than through `QITS_SCOPE`,
+ * because it has no reason to wait on the project list that token's parsing needs: it is leaving
+ * this application either way, so it falls back to `qits` rather than to the unscoped answer
+ * `QITS_SCOPE` would give while that list is still loading.
  *
  * This app is project scoped and not repository scoped: the buffer carries no project and no
  * repository row, so a scope here says where the reader came from rather than what is drawn.

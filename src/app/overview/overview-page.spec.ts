@@ -259,17 +259,19 @@ describe('OverviewPage', () => {
   // This claim used to be about `PendingPage`, and it moved as each screen landed: `/traces`, then
   // `/errors`, then `/metrics`, which was the last route standing behind it. There is no unbuilt
   // screen left, so what is asserted now is what the placeholder was always standing in for — that
-  // the selection travels in the URL and the receiving screen reads it back.
+  // the selection travels in the URL and the receiving screen reads it back. `/metrics` stopped
+  // being that receiving screen once it became a redirect in its own turn (qits-2340), so this now
+  // asserts against `/spans` instead.
   it('carries the selected source into the screen a reader navigates to', async () => {
-    await open('/metrics?source=_service%2Fqits-ci');
+    await open('/spans?source=_service%2Fqits-ci');
     flush();
     http
       .expectOne(
         (request) =>
-          request.url === '/observability/api/telemetry/metrics' &&
+          request.url === '/observability/api/telemetry/slow-spans' &&
           request.params.get('source') === '_service/qits-ci',
       )
-      .flush({ metrics: [] });
+      .flush({ spans: [], total: 0, truncated: false });
     await settle();
 
     expect(text()).toContain('qits-ci');

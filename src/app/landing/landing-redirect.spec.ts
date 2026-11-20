@@ -7,8 +7,8 @@ import { LandingRedirect, type LandingRedirectData } from './landing-redirect';
 
 /**
  * Where an old bookmark to one of this app's own addresses lands, now that the screen itself lives
- * in the landing app — `/logs` and `/errors` alike, told apart only by the `data` the matching
- * route in `app.routes.ts` carries.
+ * in the landing app — `/logs`, `/errors` and `/metrics` alike, told apart only by the `data` the
+ * matching route in `app.routes.ts` carries.
  *
  * **No router here, on purpose.** The component reads its one route parameter off
  * `ActivatedRoute.snapshot.parent`, which is a plain object this suite can shape directly — mounting
@@ -43,6 +43,12 @@ const ERRORS_DATA: LandingRedirectData = {
   path: 'errors',
   params: ['source', 'since'],
   label: 'errors',
+};
+
+const METRICS_DATA: LandingRedirectData = {
+  path: 'metrics',
+  params: ['source', 'name'],
+  label: 'metrics',
 };
 
 describe('LandingRedirect', () => {
@@ -183,6 +189,36 @@ describe('LandingRedirect', () => {
       expect(replace).toHaveBeenCalledWith(
         'https://qits.example.test/projects/qits/observability/errors' +
           '?source=_service%2Fqits-ci&since=60',
+      );
+    });
+  });
+
+  describe('/metrics', () => {
+    it('redirects to the landing app’s metrics screen, forwarding only the lenses it still reads', () => {
+      mount({
+        data: METRICS_DATA,
+        query: { source: '_service/qits-ci', name: 'jvm.memory.used', service: 'x' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledOnce();
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/observability/metrics' +
+          '?source=_service%2Fqits-ci&name=jvm.memory.used',
+      );
+    });
+
+    it('keeps the project named in the address', () => {
+      mount({
+        data: METRICS_DATA,
+        project: 'qits',
+        query: { source: '_service/qits-ci', name: 'jvm.memory.used' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/observability/metrics' +
+          '?source=_service%2Fqits-ci&name=jvm.memory.used',
       );
     });
   });
