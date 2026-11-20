@@ -2,9 +2,9 @@
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
 served by qits-observability itself at the root of `observability.<env>.<domain>` through Quinoa.
-Two screens and no forms or writes at all; `/logs`, `/errors`, `/metrics`, `/spans` and
-`/traces/<traceId>` are five further addresses that redirect to the landing app's own screens rather
-than screens of their own (qits-2313, qits-2339, qits-2340, qits-2341, qits-2343).
+One screen and no forms or writes at all; `/logs`, `/errors`, `/metrics`, `/spans`, `/traces` and
+`/traces/<traceId>` are six further addresses that redirect to the landing app's own screens rather
+than screens of their own (qits-2313, qits-2339, qits-2340, qits-2341, qits-2342, qits-2343).
 
 **Every screen is reachable twice**: at the root and under a project slug — `/qits/traces` is the
 same page as `/traces`. The literal routes are matched first, so `traces`, `spans`, `errors`, `logs`
@@ -31,18 +31,18 @@ written down here.
   shell reads and nothing per source, because a source's counts and its service breakdown arrive
   with its row. Expanding a source costs nothing, and selecting one costs nothing — selection is a
   query parameter the next screen reads.
-- **`/traces`** — the trace list, Recent or Slowest. **+1**
-  (`GET /telemetry/traces?source=&service=&sort=&thresholdMs=&limit=`), every 10 s. It stays one
-  request however you narrow it: the lens, the duration floor and the service each change _that_
-  request rather than adding another, and the service dropdown is drawn from the source row the band
-  already holds. With no source selected it is **+0** — a read with no source answers `200` and an
-  empty list, so firing one would spend a request to say "no telemetry" about a bucket nobody chose.
-- **`/traces/<traceId>`** — no longer a screen here. The waterfall, the span detail pane and the
-  correlated logs moved into the landing app, at `/projects/<slug>/observability/traces/<traceId>`,
-  and this address now exists only to carry an old bookmark there: it forwards `?source=` — the one
-  lens the landing screen still reads — drops anything else (`?service=`, `?since=`, `?q=`, `?sort=`
-  and `?threshold=` belong to the list above it, not to one trace), and resolves `<slug>` the same
-  way as `/logs`, `/errors`, `/metrics` and `/spans` below. **+0**: nothing here is read from the
+- **`/traces`** — no longer a screen here. The trace list moved into the landing app, at
+  `/projects/<slug>/observability/traces`, and this address now exists only to carry an old
+  bookmark there: it forwards `?source=`, `?sort=`, `?threshold=`, `?service=` and `?view=` — the
+  lenses the landing screen still reads — and resolves `<slug>` the same way as the others below.
+  **+0**: nothing here is read from the buffer any more, and the redirect is a full-page navigation
+  once the landing app's origin is known (qits-2342).
+- **`/traces/<traceId>`** — no longer a screen here either. The waterfall, the span detail pane and
+  the correlated logs moved into the landing app, at
+  `/projects/<slug>/observability/traces/<traceId>`, and this address now exists only to carry an
+  old bookmark there: it forwards `?source=` — the one lens the landing screen still reads — drops
+  anything else (`?service=`, `?since=`, `?q=`, `?sort=` and `?threshold=` belong to the list above
+  it, not to one trace), and resolves `<slug>` the same way. **+0**: nothing here is read from the
   buffer any more, and the redirect is a full-page navigation once the landing app's origin is known
   (qits-2343).
 - **`/spans`** — no longer a screen here. The span table moved into the landing app, at
@@ -73,15 +73,15 @@ written down here.
   here is read from the buffer any more, and the redirect is a full-page navigation once the landing
   app's origin is known (qits-2340).
 
-Every address above but `/logs`, `/errors`, `/metrics`, `/spans` and `/traces/<traceId>` is a real
-screen. A `PendingPage` stood behind the unwritten ones so the route table was the whole route
-table from the first commit — addressable, carrying the selected source, and saying what each
+Every address above but `/logs`, `/errors`, `/metrics`, `/spans`, `/traces` and `/traces/<traceId>`
+is a real screen. A `PendingPage` stood behind the unwritten ones so the route table was the whole
+route table from the first commit — addressable, carrying the selected source, and saying what each
 screen would show and cost, because an unbuilt route that renders blank chrome is indistinguishable
 from a screen that failed to load. `/metrics` was the last one behind it, so that component is gone
-with it. `/logs`, `/errors`, `/metrics`, `/spans` and `/traces/<traceId>` later lost their own
-screens the other way: not because they were never built, but because the landing app grew better
-ones and these addresses became redirects to them (qits-2313, qits-2339, qits-2340, qits-2341,
-qits-2343).
+with it. `/logs`, `/errors`, `/metrics`, `/spans`, `/traces` and `/traces/<traceId>` later lost
+their own screens the other way: not because they were never built, but because the landing app
+grew better ones and these addresses became redirects to them (qits-2313, qits-2339, qits-2340,
+qits-2341, qits-2342, qits-2343).
 
 **The lenses live in the URL, not in the components.** `?source=`, `?sort=`, `?threshold=`,
 `?service=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
@@ -153,11 +153,10 @@ record that exporter ever sent. That rule lived in the waterfall's span pane alo
 the screen to the landing app too (qits-2343); no screen left here draws resource attributes at all.
 
 **The restart sentence has one home.** Every screen ends its empty-state ladder with "the buffer was
-emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so both
-remaining screens say it identically — a reader who meets it on the overview and again on the trace
-list must not have to work out whether the two describe the same event. The coda is each screen's
-own, in its own nouns, because what a restart costs the overview and what it costs a trace list are
-different losses.
+emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead. The trace
+list shared it until its own address became a redirect too (qits-2342); the overview is its only
+caller now. The coda was always each screen's own, in its own nouns, because what a restart costs
+the overview is not what it cost the trace list.
 
 **The workspace lens says what it is waiting for.** The other lens on this service is keyed on a
 repository and a workspace, it is real, and it has never had a subject: no workspace dev server
@@ -173,11 +172,11 @@ WebSocket and no long-poll route. It does fire an internal change hint, but that
 workspace-scoped records — which is none of the telemetry that exists today — so a stream wired to it
 would look live and never fire, which is worse than no stream at all.
 
-The band re-reads the store and the sources every 10 s, and so does the trace list on the same
-cadence. The trace detail used to be the one exception — a finished trace does not change, so it
-never polled at all — but that screen, and the choice not to poll it, moved to the landing app with
-it (qits-2343). **All polling stops when the tab is hidden** and does one immediate catch-up read on
-return, so a backgrounded tab costs nothing.
+The band re-reads the store and the sources every 10 s — that is the only polling left in this
+application now. The trace list's own 10 s cadence and the trace detail's choice not to poll at
+all, a finished trace does not change, both moved to the landing app along with their screens
+(qits-2342, qits-2343). **All polling stops when the tab is hidden** and does one immediate
+catch-up read on return, so a backgrounded tab costs nothing.
 A failed poll backs off to 30 s, keeps the last good answer on screen and marks it stale — data you
 know is 40 s old beats an empty page.
 
@@ -214,8 +213,9 @@ names the six bands and the URL coercion the logs screen's own dropdown used to 
 since that screen moved there too (qits-2313) and kept rather than deleted, since it is a direct
 mirror of what the service's own `minSeverity` accepts; `window`, which holds the `?since=` spelling
 every screen that offers a window must agree on; `restart`, which holds the threshold and the lead
-sentence both remaining screens end their empty-state ladder with; and `lens-select`, the
-dropdown every open-ended lens is drawn with.
+sentence the overview's empty-state ladder ends with — its only caller now that the trace list that
+once shared it became a redirect too (qits-2342); and `lens-select`, the dropdown every open-ended
+lens is drawn with.
 
 **`lens-select` is a native `<select>` on purpose**, where the sidebar's source picker is
 `qits-picker`. The shared component renders its options open in the flow of the page whenever
@@ -250,6 +250,9 @@ metric-grouping, series-counting and unit-gloss logic it held is no longer part 
 
 `error-group.ts` moved along with the errors screen itself, to the landing app (qits-2339); the
 group-headline logic it held is no longer part of this repository.
+
+`trace-group.ts` moved along with the trace list itself, to the landing app (qits-2342); the
+path-folding logic it held is no longer part of this repository.
 
 One measurement worth writing down: a nanosecond epoch is a 61-bit figure and JSON hands it to a
 double, so its low bits are gone before this code sees it — 42 ms of nanos measures back as

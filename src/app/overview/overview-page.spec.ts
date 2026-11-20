@@ -257,26 +257,14 @@ describe('OverviewPage', () => {
   });
 
   // This claim used to be about `PendingPage`, and it moved as each screen landed: `/traces`, then
-  // `/errors`, then `/metrics`, which was the last route standing behind it. There is no unbuilt
-  // screen left, so what is asserted now is what the placeholder was always standing in for — that
-  // the selection travels in the URL and the receiving screen reads it back. `/metrics` stopped
-  // being that receiving screen once it became a redirect in its own turn (qits-2340), and so did
-  // `/spans` in its own (qits-2341) — `/traces` is the one real screen left to assert against.
-  it('carries the selected source into the screen a reader navigates to', async () => {
-    await open('/traces?source=_service%2Fqits-ci');
-    flush();
-    http
-      .expectOne(
-        (request) =>
-          request.url === '/observability/api/telemetry/traces' &&
-          request.params.get('source') === '_service/qits-ci',
-      )
-      .flush({ traces: [], total: 0, truncated: false });
-    await settle();
-
-    expect(text()).toContain('qits-ci');
-    http.verify();
-  });
+  // `/errors`, then `/metrics`, which was the last route standing behind it. It then tracked each
+  // screen's own retirement into a redirect in turn — `/metrics` (qits-2340), `/spans` (qits-2341),
+  // the trace list (qits-2342) and finally the trace detail itself (qits-2343). There is no screen
+  // left in this repository for a selection to land on any more: every address below the overview
+  // is {@link LandingRedirect}, which reads its own address directly off the route rather than
+  // anything this page passed it. The claim this test once made now lives in
+  // `landing-redirect.spec.ts`, which asserts the forwarding itself, and in `app.routes.spec.ts`,
+  // which asserts the redirect renders at the real address.
 
   it('draws a 404 with the chrome around it rather than blank chrome', async () => {
     // Two segments, because one is now the project form: `/nope` reads as a project this platform

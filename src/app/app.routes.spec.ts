@@ -16,8 +16,9 @@ import { routes } from './app.routes';
  * the root of this host and under a project slug — and this app's own first segments still win.
  *
  * `traces` is the case worth naming. It is a literal route here and it is also a plausible project
- * slug, so the order of the table is the only thing keeping `/traces` the trace list. Each page's
- * own spec asserts what it draws; this file asserts only that the address reaches it.
+ * slug, so the order of the table is the only thing keeping `/traces` this app's own address — the
+ * {@link LandingRedirect} it now resolves to (qits-2342) rather than a project named "traces". Each
+ * page's own spec asserts what it draws; this file asserts only that the address reaches it.
  */
 
 const NAV = [{ label: 'Observability', href: '/observability/' }] as const;
@@ -57,23 +58,23 @@ describe('routes', () => {
     }
   }
 
-  it('keeps its own literal route: /traces is the trace list, not a project', async () => {
+  it('keeps its own literal route: /traces is the redirect, not a project', async () => {
     const harness = await RouterTestingHarness.create('/traces');
     answerTheBuffer();
     await harness.fixture.whenStable();
 
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-traces-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-landing-redirect'),
     ).not.toBeNull();
   });
 
-  it('serves the same trace list under a project slug', async () => {
+  it('serves the same redirect under a project slug', async () => {
     const harness = await RouterTestingHarness.create('/qits/traces');
     answerTheBuffer();
     await harness.fixture.whenStable();
 
     expect(
-      (harness.routeNativeElement as HTMLElement).querySelector('app-traces-page'),
+      (harness.routeNativeElement as HTMLElement).querySelector('app-landing-redirect'),
     ).not.toBeNull();
   });
 
@@ -108,7 +109,10 @@ describe('routes', () => {
   });
 
   it('names the scoped project in the header', async () => {
-    const harness = await RouterTestingHarness.create('/qits/traces');
+    // `/traces` and `/traces/:traceId` are both redirects now (qits-2342, qits-2343) and draw no
+    // header of their own, so this reads the project off the one screen left that still has one:
+    // the overview.
+    const harness = await RouterTestingHarness.create('/qits');
     answerTheBuffer();
     await harness.fixture.whenStable();
 
@@ -118,7 +122,7 @@ describe('routes', () => {
   });
 
   it('names no project at the root, where the address scopes nothing', async () => {
-    const harness = await RouterTestingHarness.create('/traces');
+    const harness = await RouterTestingHarness.create('/');
     answerTheBuffer();
     await harness.fixture.whenStable();
 
