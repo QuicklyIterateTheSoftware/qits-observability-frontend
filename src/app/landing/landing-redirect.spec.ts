@@ -57,6 +57,12 @@ const SPANS_DATA: LandingRedirectData = {
   label: 'slow spans',
 };
 
+const TRACE_DATA: LandingRedirectData = {
+  path: 'traces/:traceId',
+  params: ['source'],
+  label: 'trace',
+};
+
 describe('LandingRedirect', () => {
   let replace: ReturnType<typeof vi.fn<(url: string) => void>>;
 
@@ -64,6 +70,7 @@ describe('LandingRedirect', () => {
   function mount(options: {
     readonly data: LandingRedirectData;
     readonly project?: string;
+    readonly params?: Readonly<Record<string, string>>;
     readonly query?: Readonly<Record<string, string>>;
     readonly navigation?: QitsNavigation;
   }): ComponentFixture<LandingRedirect> {
@@ -71,6 +78,7 @@ describe('LandingRedirect', () => {
     const route = {
       snapshot: {
         data: options.data,
+        paramMap: convertToParamMap(options.params ?? {}),
         queryParamMap: convertToParamMap(options.query ?? {}),
         parent:
           options.project === undefined
@@ -261,6 +269,52 @@ describe('LandingRedirect', () => {
       expect(replace).toHaveBeenCalledWith(
         'https://qits.example.test/projects/qits/observability/slow-spans' +
           '?source=_service%2Fqits-ci&sort=slowest&threshold=250&since=60',
+      );
+    });
+  });
+
+  describe('/traces/:traceId', () => {
+    it('substitutes the matched traceId into the forwarded path', () => {
+      mount({
+        data: TRACE_DATA,
+        params: { traceId: 'abc123' },
+        query: { source: '_service/qits-ci', service: 'x' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledOnce();
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/observability/traces/abc123' +
+          '?source=_service%2Fqits-ci',
+      );
+    });
+
+    it('keeps the project named in the address', () => {
+      mount({
+        data: TRACE_DATA,
+        project: 'qits',
+        params: { traceId: 'abc123' },
+        query: { source: '_service/qits-ci' },
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        'https://qits.example.test/projects/qits/observability/traces/abc123' +
+          '?source=_service%2Fqits-ci',
+      );
+    });
+
+    it('URL-encodes an id with characters a path segment cannot carry literally', () => {
+      mount({
+        data: TRACE_DATA,
+        project: 'qits',
+        params: { traceId: 'a/b c?d#e' },
+        query: {},
+        navigation: LANDING_ORIGIN,
+      });
+
+      expect(replace).toHaveBeenCalledWith(
+        `https://qits.example.test/projects/qits/observability/traces/${encodeURIComponent('a/b c?d#e')}`,
       );
     });
   });

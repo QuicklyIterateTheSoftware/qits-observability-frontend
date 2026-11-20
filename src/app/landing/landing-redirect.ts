@@ -10,7 +10,16 @@ import { QitsAppLinks } from '@qits/ui-components';
  * difference is table data in `app.routes.ts` and not a second component.
  */
 export interface LandingRedirectData {
-  /** The segment after `/projects/<project>/observability/` on the landing app, e.g. `logs`. */
+  /**
+   * The segment after `/projects/<project>/observability/` on the landing app, e.g. `logs`.
+   *
+   * A segment can also name one of *this* route's own matched parameters, with a leading `:`,
+   * e.g. `traces/:traceId` — the landing screen it forwards to takes the same id in its own
+   * address, so the id has to ride along in the path rather than in `params`, which only ever
+   * names query parameters. Every `:name` is replaced by that parameter's matched value off this
+   * route's own `paramMap`, URL-encoded; a path with no `:` in it, which is every address but
+   * `traces/:traceId` today, passes through unchanged.
+   */
   readonly path: string;
   /** The query parameters the landing screen still reads. Everything else is dropped. */
   readonly params: readonly string[];
@@ -68,6 +77,15 @@ export class LandingRedirect {
   /** The `:project` segment one level up, or `undefined` at this app's own unscoped address. */
   private readonly project = this.route.snapshot.parent?.paramMap.get('project') ?? 'qits';
 
+  /**
+   * {@link LandingRedirectData.path}, with each `:name` segment substituted from this route's own
+   * matched parameters — see there for why. Built once, like `project` and `query`: none of this
+   * page's state changes without a fresh navigation, which is a fresh `LandingRedirect` instance.
+   */
+  private readonly path = this.data.path.replace(/:([A-Za-z]\w*)/g, (_match, name: string) =>
+    encodeURIComponent(this.route.snapshot.paramMap.get(name) ?? ''),
+  );
+
   /** The forwarded query string, built once: this page never re-renders on a param change. */
   private readonly query = (() => {
     const params = this.route.snapshot.queryParamMap;
@@ -87,7 +105,7 @@ export class LandingRedirect {
     if (!origin) {
       return undefined;
     }
-    const path = `/projects/${encodeURIComponent(this.project)}/observability/${this.data.path}`;
+    const path = `/projects/${encodeURIComponent(this.project)}/observability/${this.path}`;
     const search = this.query ? `?${this.query}` : '';
     return `${origin.replace(/\/+$/, '')}${path}${search}`;
   });

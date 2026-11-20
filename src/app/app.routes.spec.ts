@@ -77,6 +77,26 @@ describe('routes', () => {
     ).not.toBeNull();
   });
 
+  it('hands a trace address off to the landing app rather than drawing a waterfall of its own', async () => {
+    const harness = await RouterTestingHarness.create('/traces/abc123');
+    answerTheBuffer();
+    await harness.fixture.whenStable();
+
+    const element = harness.routeNativeElement as HTMLElement;
+    expect(element.querySelector('app-landing-redirect')).not.toBeNull();
+    expect(element.textContent).toContain('The trace moved to the landing app');
+  });
+
+  it('hands the same trace address off under a project slug', async () => {
+    const harness = await RouterTestingHarness.create('/qits/traces/abc123');
+    answerTheBuffer();
+    await harness.fixture.whenStable();
+
+    const element = harness.routeNativeElement as HTMLElement;
+    expect(element.querySelector('app-landing-redirect')).not.toBeNull();
+    expect(element.textContent).toContain('The trace moved to the landing app');
+  });
+
   it('puts the overview at the root and under a project slug alike', async () => {
     const harness = await RouterTestingHarness.create('/qits');
     answerTheBuffer();

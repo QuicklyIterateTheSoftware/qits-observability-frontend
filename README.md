@@ -2,9 +2,9 @@
 
 The observability explorer: the read-only view of what this platform is reporting about itself,
 served by qits-observability itself at the root of `observability.<env>.<domain>` through Quinoa.
-Three screens and no forms or writes at all; `/logs`, `/errors`, `/metrics` and `/spans` are four
-further addresses that redirect to the landing app's own screens rather than screens of their own
-(qits-2313, qits-2339, qits-2340, qits-2341).
+Two screens and no forms or writes at all; `/logs`, `/errors`, `/metrics`, `/spans` and
+`/traces/<traceId>` are five further addresses that redirect to the landing app's own screens rather
+than screens of their own (qits-2313, qits-2339, qits-2340, qits-2341, qits-2343).
 
 **Every screen is reachable twice**: at the root and under a project slug — `/qits/traces` is the
 same page as `/traces`. The literal routes are matched first, so `traces`, `spans`, `errors`, `logs`
@@ -37,10 +37,14 @@ written down here.
   request rather than adding another, and the service dropdown is drawn from the source row the band
   already holds. With no source selected it is **+0** — a read with no source answers `200` and an
   empty list, so firing one would spend a request to say "no telemetry" about a bucket nobody chose.
-- **`/traces/<traceId>`** — the waterfall, the span detail pane and the correlated
-  logs. **+1** (`GET /telemetry/traces/{traceId}?source=`). It does not poll: a trace is a finished
-  thing, and a manual refresh covers late spans. The spans and their correlated logs arrive in the
-  same answer, so the log rail costs nothing on top, and selecting a span costs nothing either.
+- **`/traces/<traceId>`** — no longer a screen here. The waterfall, the span detail pane and the
+  correlated logs moved into the landing app, at `/projects/<slug>/observability/traces/<traceId>`,
+  and this address now exists only to carry an old bookmark there: it forwards `?source=` — the one
+  lens the landing screen still reads — drops anything else (`?service=`, `?since=`, `?q=`, `?sort=`
+  and `?threshold=` belong to the list above it, not to one trace), and resolves `<slug>` the same
+  way as `/logs`, `/errors`, `/metrics` and `/spans` below. **+0**: nothing here is read from the
+  buffer any more, and the redirect is a full-page navigation once the landing app's origin is known
+  (qits-2343).
 - **`/spans`** — no longer a screen here. The span table moved into the landing app, at
   `/projects/<slug>/observability/slow-spans`, and this address now exists only to carry an old
   bookmark there: it forwards `?source=`, `?sort=`, `?threshold=` and `?since=` — the lenses the
@@ -69,14 +73,15 @@ written down here.
   here is read from the buffer any more, and the redirect is a full-page navigation once the landing
   app's origin is known (qits-2340).
 
-Every address above but `/logs`, `/errors`, `/metrics` and `/spans` is a real screen. A
-`PendingPage` stood behind the unwritten ones so the route table was the whole route table from the
-first commit — addressable, carrying the selected source, and saying what each screen would show
-and cost, because an unbuilt route that renders blank chrome is indistinguishable from a screen
-that failed to load. `/metrics` was the last one behind it, so that component is gone with it.
-`/logs`, `/errors`, `/metrics` and `/spans` later lost their own screens the other way: not because
-they were never built, but because the landing app grew better ones and these addresses became
-redirects to them (qits-2313, qits-2339, qits-2340, qits-2341).
+Every address above but `/logs`, `/errors`, `/metrics`, `/spans` and `/traces/<traceId>` is a real
+screen. A `PendingPage` stood behind the unwritten ones so the route table was the whole route
+table from the first commit — addressable, carrying the selected source, and saying what each
+screen would show and cost, because an unbuilt route that renders blank chrome is indistinguishable
+from a screen that failed to load. `/metrics` was the last one behind it, so that component is gone
+with it. `/logs`, `/errors`, `/metrics`, `/spans` and `/traces/<traceId>` later lost their own
+screens the other way: not because they were never built, but because the landing app grew better
+ones and these addresses became redirects to them (qits-2313, qits-2339, qits-2340, qits-2341,
+qits-2343).
 
 **The lenses live in the URL, not in the components.** `?source=`, `?sort=`, `?threshold=`,
 `?service=`, `?since=`, `?q=` and `?name=` each change what is on screen, and by the house rule
@@ -134,16 +139,18 @@ the service's search matches.
 process's resource attributes beside its own — `service.name`, `service.version`,
 `deployment.environment.name` and `service.instance.id` — and the version is the deploy's sha or its
 calver. A platform that ships several times a day into a buffer that holds hours holds records from
-more than one build, and they are otherwise identical on screen. So the waterfall's span pane draws
-the whole map beside the span's own attributes, build first — because a rolling replace puts two
+more than one build, and they are otherwise identical on screen. The waterfall's span pane once drew
+the whole map beside the span's own attributes, build first, because a rolling replace puts two
 builds of one service in one buffer and knowing which one is current is exactly what a reader came
-for. The errors screen once carried the same map per piece of evidence; that behaviour moved with it
-to the landing app (qits-2339).
+for — that behaviour moved with the waterfall itself to the landing app (qits-2343), the same way it
+had already moved for the errors screen before it (qits-2339). No screen left in this repository
+draws it any more.
 
-**Where an exporter stamped no resource, nothing is drawn.** It is the one absence in this app that
-gets no sentence, and the distinction is the point: a span with no attributes is a fact about
+**Where an exporter stamped no resource, nothing was drawn.** It was the one absence in this app
+that got no sentence, and the distinction was the point: a span with no attributes is a fact about
 somebody's instrumentation, while a record with no resource is the same non-fact repeated on every
-record that exporter ever sent.
+record that exporter ever sent. That rule lived in the waterfall's span pane alone, so it moved with
+the screen to the landing app too (qits-2343); no screen left here draws resource attributes at all.
 
 **The restart sentence has one home.** Every screen ends its empty-state ladder with "the buffer was
 emptied N ago when qits-observability restarted", and `ui/restart.ts` writes that lead so both
@@ -166,9 +173,11 @@ WebSocket and no long-poll route. It does fire an internal change hint, but that
 workspace-scoped records — which is none of the telemetry that exists today — so a stream wired to it
 would look live and never fire, which is worse than no stream at all.
 
-The band re-reads the store and the sources every 10 s. A screen re-reads its own single request on
-the same cadence, except the trace detail, which does not poll at all. **All polling stops when the
-tab is hidden** and does one immediate catch-up read on return, so a backgrounded tab costs nothing.
+The band re-reads the store and the sources every 10 s, and so does the trace list on the same
+cadence. The trace detail used to be the one exception — a finished trace does not change, so it
+never polled at all — but that screen, and the choice not to poll it, moved to the landing app with
+it (qits-2343). **All polling stops when the tab is hidden** and does one immediate catch-up read on
+return, so a backgrounded tab costs nothing.
 A failed poll backs off to 30 s, keeps the last good answer on screen and marks it stale — data you
 know is 40 s old beats an empty page.
 
@@ -198,8 +207,9 @@ on every hop in a menu that did not itself change.
 copied from the sibling SPAs rather than shared. `@qits/ui-components` carries presentational components, not
 application types, so there is nowhere to put them yet — and this feature does not edit the shared
 library. Four modules there are this application's own rather than copies: `severity`, which turns a
-log's two severity fields into a chip — drawn here only by the waterfall's span pane now that the
-errors screen that once drew the same chip has moved to the landing app (qits-2339) — and also still
+log's two severity fields into a chip — drawn nowhere in this app any more now that the waterfall's
+span pane, the last screen left here that drew it, moved to the landing app too (qits-2343), the
+same way the errors screen's own copy of the same chip moved before it (qits-2339) — and also still
 names the six bands and the URL coercion the logs screen's own dropdown used to draw, unused here
 since that screen moved there too (qits-2313) and kept rather than deleted, since it is a direct
 mirror of what the service's own `minSeverity` accepts; `window`, which holds the `?since=` spelling
@@ -217,25 +227,23 @@ offer — a link carrying a `?service=` that has stopped reporting — is said o
 dropped, since the filter is still shaping an answer that would otherwise look like an empty
 bucket.
 
-**There is no charting dependency, and there will not be one.** The waterfall is a nested list where
-each row carries a `left` and a `width` in percent, computed from the trace's own start and span:
-`parentSpanId` + `startEpochNanos` + `durationMs` is exactly that, and nothing here is a curve. No
+**There was no charting dependency, and there will not be one.** The waterfall that used to draw one
+trace, on the screen that moved to the landing app (qits-2343), was a nested list where each row
+carried a `left` and a `width` in percent, computed from the trace's own start and span:
+`parentSpanId` + `startEpochNanos` + `durationMs` is exactly that, and nothing in it was a curve. No
 SPA on this platform has a chart library, and the one place a chart was ever considered, it was
 refused in writing.
 
-The layout itself is a pure function in `traces/trace-layout.ts`, and it is a function so that the
-three shapes a bounded buffer forces can be asserted directly rather than through the DOM — each of
-them draws something plausible and wrong if it is handled carelessly:
-
-- **A span whose parent is not buffered is drawn at the top level and says so.** It is never
-  re-parented. Eviction removes spans one at a time, and a client span whose server parent sits in
-  another source's bucket is not damage at all — either way, an invented parent would draw a
-  perfectly plausible tree that misstates who called whom.
-- **A trace with no root at all is flagged**, rather than promoting the earliest survivor into a
-  root it never was. The list answers this as `rootMissing`; the detail derives the same condition.
-- **`durationMs` is integer milliseconds, so a sub-millisecond span is `0`.** The width stays an
-  honest `0%` and the bar is floored in CSS, so the geometry remains a true proportion while the row
-  stays visible. Its label reads `<1 ms`, which is exactly what the service's `0` means.
+The layout itself was a pure function, `layOutTrace` in `traces/trace-layout.ts`, kept as a function
+rather than inlined so the three shapes a bounded buffer forces could be asserted directly rather
+than through the DOM — each of them drew something plausible and wrong if handled carelessly: a
+span whose parent is not buffered, drawn at the top level rather than re-parented; a trace with no
+root at all, flagged as `rootMissing` rather than promoting the earliest survivor into a root it
+never was; and `durationMs` as integer milliseconds, so a sub-millisecond span floored to a
+`0%`-width bar in CSS labelled `<1 ms` rather than vanishing. `layOutTrace`, `EMPTY_WATERFALL` and
+`WaterfallRow` have no caller left in this repository now that the screen that was their only one is
+gone, but `traces/trace-layout.ts` itself stays, because the trace list's own duration column still
+reads `formatDuration` from the same module.
 
 `metric-series.ts` moved along with the metrics screen itself, to the landing app (qits-2340); the
 metric-grouping, series-counting and unit-gloss logic it held is no longer part of this repository.
